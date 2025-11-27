@@ -1,0 +1,39 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# Poetry virtualenvs (але у тебе воно зберігається поза проектом)
+# .cache/pypoetry/
+
+# --- FastAPI / Uvicorn ---
+*.log
+
+# --- IDE files ---
+.idea/
+.vscode/
+
+# --- Byte-compiled ---
+*.egg-info/
+dist/
+build/
+
+# --- Environment variables ---
+.env
+*.env
+
+# --- Test cache ---
+.pytest_cache/
+
+# --- Coverage ---
+htmlcov/
+.coverage
+
+# --- Docker ---
+*.pid
+*.sock
