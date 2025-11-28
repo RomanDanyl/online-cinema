@@ -1,0 +1,170 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cinema_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cinema_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+#  redis:
+#    image: redis:7
+#    container_name: cinema_redis
+#    ports:
+#      - "6379:6379"
+#    networks:
+#      - cinema_net
+#
+#  minio:
+#    image: minio/minio
+#    container_name: cinema_minio
+#    command: server --console-address ":9001" /data
+#    environment:
+#      MINIO_ROOT_USER: ${MINIO_USER}
+#      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+#    ports:
+#      - "9000:9000"
+#      - "9001:9001"
+#    volumes:
+#      - minio_data:/data
+#    networks:
+#      - cinema_net
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#
+#  minio_mc:
+#    image: minio/mc
+#    container_name: cinema_minio_mc
+#    depends_on:
+#      minio:
+#        condition: service_healthy
+#    entrypoint: >
+#      /bin/sh -c "
+#      mc config host add local http://minio:9000 ${MINIO_USER} ${MINIO_PASSWORD};
+#      mc mb -p local/cinema;
+#      mc anonymous set public local/cinema;
+#      "
+#    networks:
+#      - cinema_net
+#
+#  mailhog:
+#    image: mailhog/mailhog
+#    container_name: cinema_mailhog
+#    ports:
+#      - "8025:8025"
+#      - "1025:1025"
+#    networks:
+#      - cinema_net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinema_api
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./src:/usr/src/fastapi
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+#      redis:
+#        condition: service_started
+#      minio:
+#        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - cinema_net
+#
+#  migrator:
+#    build: .
+#    container_name: alembic_migrator_theater
+#    command: [ "/bin/bash", "/commands/run_migration.sh" ]
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    volumes:
+#      - ./src:/usr/src/fastapi
+#    env_file:
+#      - .env
+#    environment:
+#      - PYTHONPATH=/usr/src/fastapi
+#    networks:
+#      - cinema_net
+
+#  migrations:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    container_name: cinema_migrations
+#    command: alembic upgrade head
+#    volumes:
+#      - ./src:/usr/src/app/src
+#    env_file:
+#      - .env
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    networks:
+#      - cinema_net
+
+#  celery:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    container_name: cinema_celery
+#    command: celery -A src.core.celery_app worker --loglevel=info
+#    volumes:
+#      - ./src:/usr/src/app/src
+#    env_file:
+#      - .env
+#    depends_on:
+#      redis:
+#        condition: service_started
+#      db:
+#        condition: service_healthy
+#    networks:
+#      - cinema_net
+#
+#  celery_beat:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    container_name: cinema_celery_beat
+#    command: celery -A src.core.celery_app beat --loglevel=info
+#    volumes:
+#      - ./src:/usr/src/app/src
+#    env_file:
+#      - .env
+#    depends_on:
+#      redis:
+#        condition: service_started
+#      db:
+#        condition: service_healthy
+#    networks:
+#      - cinema_net
+
+
+volumes:
+  postgres_data:
+#  minio_data:
+
+networks:
+  cinema_net:
+    driver: bridge
