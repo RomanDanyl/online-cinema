@@ -30,3 +30,26 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "black (>=25.11.0,<26.0.0)",
+    "flake8 (>=7.3.0,<8.0.0)"
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "migrations",
+]
