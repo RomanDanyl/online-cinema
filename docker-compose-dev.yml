@@ -3,9 +3,9 @@ services:
     image: postgres:16
     container_name: cinema_postgres
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5433:5432"
     volumes:
@@ -13,7 +13,7 @@ services:
     networks:
       - cinema_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -71,9 +71,8 @@ services:
 #      - cinema_net
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    restart: always
+    build: .
     container_name: cinema_api
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
@@ -92,21 +91,23 @@ services:
     networks:
       - cinema_net
 #
-#  migrator:
-#    build: .
-#    container_name: alembic_migrator_theater
-#    command: [ "/bin/bash", "/commands/run_migration.sh" ]
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#    volumes:
-#      - ./src:/usr/src/fastapi
-#    env_file:
-#      - .env
-#    environment:
-#      - PYTHONPATH=/usr/src/fastapi
-#    networks:
-#      - cinema_net
+  migrator:
+    build: .
+    container_name: alembic_migrator_theater
+    command: [ "/bin/bash", "/commands/run_migration.sh" ]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src:/usr/src/fastapi
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/usr/src/fastapi
+      - POSTGRES_HOST=db
+      - ALEMBIC_CONFIG=/usr/src/alembic/alembic.ini
+    networks:
+      - cinema_net
 
 #  migrations:
 #    build:
