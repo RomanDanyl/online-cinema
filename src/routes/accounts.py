@@ -129,7 +129,7 @@ async def register_user(
             detail="An error occurred during user creation."
         ) from e
     else:
-        activation_link = "http://127.0.0.1/accounts/activate/"
+        activation_link = "http://127.0.0.1/api/vi/accounts/activate/"
 
         await email_sender.send_activation_email(
             new_user.email,
@@ -229,7 +229,7 @@ async def activate_account(
     await db.delete(token_record)
     await db.commit()
 
-    login_link = "http://127.0.0.1/accounts/login/"
+    login_link = "http://127.0.0.1/api/v1/accounts/login/"
 
     await email_sender.send_activation_complete_email(
         str(activation_data.email),
