@@ -61,14 +61,14 @@ services:
 #    networks:
 #      - cinema_net
 #
-#  mailhog:
-#    image: mailhog/mailhog
-#    container_name: cinema_mailhog
-#    ports:
-#      - "8025:8025"
-#      - "1025:1025"
-#    networks:
-#      - cinema_net
+  mailhog:
+    image: mailhog/mailhog
+    container_name: cinema_mailhog
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - cinema_net
 
   api:
     restart: always
