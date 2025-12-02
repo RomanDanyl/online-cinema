@@ -623,7 +623,7 @@ async def refresh_access_token(
     response_model=MessageResponseSchema,
     summary="Endpoint for logging out",
     description="Logout with deleting refresh token.",
-    status_code=status.HTTP_204_NO_CONTENT
+    status_code=status.HTTP_200_OK
 )
 async def logout(
         token_data: TokenRefreshRequestSchema,
