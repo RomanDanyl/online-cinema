@@ -24,16 +24,32 @@ from schemas import (
     UserRegistrationResponseSchema,
     MessageResponseSchema,
     UserActivationRequestSchema,
+    UserActivationResendRequestSchema,
     PasswordResetRequestSchema,
     PasswordResetCompleteRequestSchema,
     UserLoginResponseSchema,
     UserLoginRequestSchema,
     TokenRefreshRequestSchema,
-    TokenRefreshResponseSchema
+    TokenRefreshResponseSchema,
+    UserProfileSchema,
+    UserProfileUpdateSchema,
+    UserResponseSchema,
+    ChangePasswordRequestSchema,
 )
 from security.interfaces import JWTAuthManagerInterface
+from security.dependencies import get_current_user
 
 router = APIRouter()
+
+
+def _serialize_user(user: UserModel) -> UserResponseSchema:
+    return UserResponseSchema(
+        id=cast(int, user.id),
+        email=user.email,
+        is_active=user.is_active,
+        group=user.group.name if user.group else "",
+        profile=UserProfileSchema.model_validate(user.profile) if user.profile else None,
+    )
 
 
 @router.post(
@@ -129,7 +145,10 @@ async def register_user(
             detail="An error occurred during user creation."
         ) from e
     else:
-        activation_link = "http://127.0.0.1/api/vi/accounts/activate/"
+        activation_link = (
+            "http://127.0.0.1/api/v1/accounts/activate/"
+            f"?token={activation_token.token}&email={new_user.email}"
+        )
 
         await email_sender.send_activation_email(
             new_user.email,
@@ -240,6 +259,42 @@ async def activate_account(
 
 
 @router.post(
+    "/activate/resend/",
+    response_model=MessageResponseSchema,
+    summary="Resend Activation Token",
+    description="Resend activation token for inactive accounts.",
+    status_code=status.HTTP_200_OK,
+)
+async def resend_activation_token(
+        data: UserActivationResendRequestSchema,
+        db: AsyncSession = Depends(get_db),
+        email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+) -> MessageResponseSchema:
+    """Resend a new activation token if the account is not active yet."""
+
+    result = await db.execute(select(UserModel).where(UserModel.email == data.email))
+    user = result.scalars().first()
+
+    if not user or user.is_active:
+        return MessageResponseSchema(message="If your account is inactive, a new link was sent.")
+
+    await db.execute(delete(ActivationTokenModel).where(ActivationTokenModel.user_id == user.id))
+    new_token = ActivationTokenModel(user_id=user.id)
+    db.add(new_token)
+    await db.commit()
+    await db.refresh(new_token)
+
+    activation_link = (
+        "http://127.0.0.1/api/v1/accounts/activate/"
+        f"?token={new_token.token}&email={user.email}"
+    )
+
+    await email_sender.send_activation_email(user.email, activation_link)
+
+    return MessageResponseSchema(message="If your account is inactive, a new link was sent.")
+
+
+@router.post(
     "/password-reset/request/",
     response_model=MessageResponseSchema,
     summary="Request Password Reset Token",
@@ -283,7 +338,7 @@ async def request_password_reset_token(
     db.add(reset_token)
     await db.commit()
 
-    password_reset_complete_link = "http://127.0.0.1/accounts/password-reset-complete/"
+    password_reset_complete_link = "http://127.0.0.1/api/v1/accounts/reset-password/complete/"
 
     await email_sender.send_password_reset_email(
         str(data.email),
@@ -378,7 +433,7 @@ async def reset_password(
 
     if not token_record or token_record.token != data.token:
         if token_record:
-            await db.run_sync(lambda s: s.delete(token_record))
+            await db.delete(token_record)
             await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -387,7 +442,7 @@ async def reset_password(
 
     expires_at = cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc)
     if expires_at < datetime.now(timezone.utc):
-        await db.run_sync(lambda s: s.delete(token_record))
+        await db.delete(token_record)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -396,7 +451,7 @@ async def reset_password(
 
     try:
         user.password = data.password
-        await db.run_sync(lambda s: s.delete(token_record))
+        await db.delete(token_record)
         await db.commit()
     except SQLAlchemyError:
         await db.rollback()
@@ -405,7 +460,7 @@ async def reset_password(
             detail="An error occurred while resetting the password."
         )
 
-    login_link = "http://127.0.0.1/accounts/login/"
+    login_link = "http://127.0.0.1/api/v1/accounts/login/"
 
     await email_sender.send_password_reset_complete_email(
         str(data.email),
@@ -616,6 +671,66 @@ async def refresh_access_token(
     new_access_token = jwt_manager.create_access_token({"user_id": user_id})
 
     return TokenRefreshResponseSchema(access_token=new_access_token)
+
+
+@router.get(
+    "/me/",
+    response_model=UserResponseSchema,
+    summary="Get current user profile",
+    status_code=status.HTTP_200_OK,
+)
+async def get_me(current_user: UserModel = Depends(get_current_user)) -> UserResponseSchema:
+    """Return currently authenticated user with profile info."""
+
+    return _serialize_user(current_user)
+
+
+@router.patch(
+    "/profile/",
+    response_model=UserResponseSchema,
+    summary="Update current user profile",
+    status_code=status.HTTP_200_OK,
+)
+async def update_profile(
+        profile_data: UserProfileUpdateSchema,
+        db: AsyncSession = Depends(get_db),
+        current_user: UserModel = Depends(get_current_user),
+) -> UserResponseSchema:
+    profile = current_user.profile
+    if profile is None:
+        profile = UserProfileModel(user=current_user)
+        db.add(profile)
+
+    for field, value in profile_data.model_dump(exclude_none=True).items():
+        setattr(profile, field, value)
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    return _serialize_user(current_user)
+
+
+@router.post(
+    "/change-password/",
+    response_model=MessageResponseSchema,
+    summary="Change user password",
+    status_code=status.HTTP_200_OK,
+)
+async def change_password(
+        data: ChangePasswordRequestSchema,
+        db: AsyncSession = Depends(get_db),
+        current_user: UserModel = Depends(get_current_user),
+) -> MessageResponseSchema:
+    if not current_user.verify_password(data.old_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid old password.",
+        )
+
+    current_user.password = data.new_password
+    await db.commit()
+
+    return MessageResponseSchema(message="Password updated successfully.")
 
 
 @router.post(

@@ -1,6 +1,8 @@
+from datetime import date
+
 from pydantic import BaseModel, EmailStr, field_validator
 
-from database import accounts_validators
+from database.validators import accounts as accounts_validators
 
 
 class BaseEmailPasswordSchema(BaseModel):
@@ -56,6 +58,45 @@ class UserRegistrationResponseSchema(BaseModel):
 class UserActivationRequestSchema(BaseModel):
     email: EmailStr
     token: str
+
+
+class UserActivationResendRequestSchema(BaseModel):
+    email: EmailStr
+
+
+class ChangePasswordRequestSchema(BaseModel):
+    old_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value):
+        return accounts_validators.validate_password_strength(value)
+
+
+class UserProfileSchema(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar: str | None = None
+    gender: str | None = None
+    date_of_birth: date | None = None
+    info: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserProfileUpdateSchema(UserProfileSchema):
+    pass
+
+
+class UserResponseSchema(BaseModel):
+    id: int
+    email: EmailStr
+    is_active: bool
+    group: str
+    profile: UserProfileSchema | None
+
+    model_config = {"from_attributes": True}
 
 
 class MessageResponseSchema(BaseModel):

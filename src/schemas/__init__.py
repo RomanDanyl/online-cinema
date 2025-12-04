@@ -8,5 +8,10 @@ from schemas.accounts import (
     UserLoginResponseSchema,
     UserLoginRequestSchema,
     TokenRefreshRequestSchema,
-    TokenRefreshResponseSchema
+    TokenRefreshResponseSchema,
+    UserProfileSchema,
+    UserProfileUpdateSchema,
+    UserResponseSchema,
+    ChangePasswordRequestSchema,
+    UserActivationResendRequestSchema,
 )
