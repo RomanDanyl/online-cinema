@@ -15,7 +15,7 @@ from database import (
     UserGroupEnum,
     ActivationTokenModel,
     PasswordResetTokenModel,
-    RefreshTokenModel
+    RefreshTokenModel, UserProfileModel
 )
 from exceptions import BaseSecurityError
 from notifications import EmailSenderInterface
