@@ -18,13 +18,13 @@ services:
       timeout: 5s
       retries: 5
 
-#  redis:
-#    image: redis:7
-#    container_name: cinema_redis
-#    ports:
-#      - "6379:6379"
-#    networks:
-#      - cinema_net
+  redis:
+    image: redis:7
+    container_name: cinema_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - cinema_net
 #
 #  minio:
 #    image: minio/minio
@@ -82,8 +82,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-#      redis:
-#        condition: service_started
+      redis:
+        condition: service_started
 #      minio:
 #        condition: service_healthy
     ports:
@@ -109,57 +109,54 @@ services:
     networks:
       - cinema_net
 
-#  migrations:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    container_name: cinema_migrations
-#    command: alembic upgrade head
-#    volumes:
-#      - ./src:/usr/src/app/src
-#    env_file:
-#      - .env
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#    networks:
-#      - cinema_net
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinema_celery
+    command: celery -A celery_app.celery_app worker --loglevel=info
+    volumes:
+      - ./src:/usr/src/fastapi
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+    networks:
+      - cinema_net
 
-#  celery:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    container_name: cinema_celery
-#    command: celery -A src.core.celery_app worker --loglevel=info
-#    volumes:
-#      - ./src:/usr/src/app/src
-#    env_file:
-#      - .env
-#    depends_on:
-#      redis:
-#        condition: service_started
-#      db:
-#        condition: service_healthy
-#    networks:
-#      - cinema_net
-#
-#  celery_beat:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    container_name: cinema_celery_beat
-#    command: celery -A src.core.celery_app beat --loglevel=info
-#    volumes:
-#      - ./src:/usr/src/app/src
-#    env_file:
-#      - .env
-#    depends_on:
-#      redis:
-#        condition: service_started
-#      db:
-#        condition: service_healthy
-#    networks:
-#      - cinema_net
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinema_celery_beat
+    command: celery -A celery_app.celery_app beat --loglevel=info
+    volumes:
+      - ./src:/usr/src/fastapi
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+    networks:
+      - cinema_net
+
+  flower:
+    image: mher/flower
+    container_name: cinema_flower
+    command: ["celery", "flower", "--port=5555"]
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    networks:
+      - cinema_net
 
 
 volumes:
