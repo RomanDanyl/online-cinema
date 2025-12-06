@@ -31,9 +31,28 @@ class BaseAppSettings(BaseSettings):
     S3_STORAGE_SECRET_KEY: str = os.getenv("MINIO_ROOT_PASSWORD", "some_password")
     S3_BUCKET_NAME: str = os.getenv("MINIO_STORAGE", "theater-storage")
 
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", 0))
+
+    CELERY_BROKER_URL: str | None = os.getenv("CELERY_BROKER_URL")
+    CELERY_RESULT_BACKEND: str | None = os.getenv("CELERY_RESULT_BACKEND")
+    CELERY_TIMEZONE: str = os.getenv("CELERY_TIMEZONE", "UTC")
+
     @property
     def S3_STORAGE_ENDPOINT(self) -> str:
         return f"http://{self.S3_STORAGE_HOST}:{self.S3_STORAGE_PORT}"
+
+    @property
+    def redis_dsn(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    def model_post_init(self, __context: dict[str, Any] | None = None) -> None:
+        if self.CELERY_BROKER_URL is None:
+            object.__setattr__(self, "CELERY_BROKER_URL", self.redis_dsn)
+        if self.CELERY_RESULT_BACKEND is None:
+            object.__setattr__(self, "CELERY_RESULT_BACKEND", self.redis_dsn)
+
 
 
 class Settings(BaseAppSettings):
