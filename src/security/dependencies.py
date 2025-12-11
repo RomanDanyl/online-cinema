@@ -1,10 +1,12 @@
+from typing import Sequence, Callable
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_jwt_auth_manager
-from database import UserModel, get_db
+from database import UserModel, get_db, UserGroupEnum
 from exceptions import BaseSecurityError
 from security.interfaces import JWTAuthManagerInterface
 
@@ -53,3 +55,18 @@ async def get_current_user(
         )
 
     return user
+
+
+def require_roles(allowed_roles: Sequence[UserGroupEnum]) -> Callable:
+    """
+    Return role checking dependency.
+    """
+    async def dependency(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+        if current_user.group.name not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to access this resource",
+            )
+        return current_user
+
+    return dependency
