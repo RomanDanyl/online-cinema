@@ -38,4 +38,5 @@ htmlcov/
 *.pid
 *.sock
 
-src/celerybeat-schedule-wal
+# Celery beat / SQLite schedule files
+src/celerybeat-schedule*
