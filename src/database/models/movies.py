@@ -26,6 +26,7 @@ from database import Base
 
 if TYPE_CHECKING:
     from database import UserModel
+    from database import CartItemModel, OrderItemModel
 
 movie_genres = Table(
     "movie_genres",
@@ -172,6 +173,12 @@ class MovieModel(Base):
         back_populates="movie", cascade="all, delete-orphan"
     )
     comments: Mapped[List["MovieCommentModel"]] = relationship(
+        back_populates="movie", cascade="all, delete-orphan"
+    )
+    cart_items: Mapped[List["CartItemModel"]] = relationship(
+        back_populates="movie", cascade="all, delete-orphan"
+    )
+    order_items: Mapped[List["OrderItemModel"]] = relationship(
         back_populates="movie", cascade="all, delete-orphan"
     )
 

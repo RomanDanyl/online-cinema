@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, date, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import (
     ForeignKey,
@@ -26,6 +26,9 @@ from database.models.movies import (
 from database.validators import accounts as validators
 from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
+
+if TYPE_CHECKING:
+    from database import CartModel, OrderModel, PaymentModel
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -108,6 +111,15 @@ class UserModel(Base):
 
     movie_comments: Mapped[List["MovieCommentModel"]] = relationship(
         back_populates="user"
+    )
+    cart: Mapped[Optional["CartModel"]] = relationship(
+        "CartModel", back_populates="user", cascade="all, delete-orphan"
+    )
+    orders: Mapped[List["OrderModel"]] = relationship(
+        "OrderModel", back_populates="user", cascade="all, delete-orphan"
+    )
+    payments: Mapped[List["PaymentModel"]] = relationship(
+        "PaymentModel", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self):
