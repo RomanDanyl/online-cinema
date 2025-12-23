@@ -27,6 +27,7 @@ from database import (
     UserReactionsEnum,
     UserModel,
 )
+from schemas import MessageResponseSchema
 from schemas.movies import MovieListResponseSchema, MovieListItemSchema
 from security.dependencies import get_current_user, get_optional_user
 
@@ -81,6 +82,12 @@ def get_movie_list_query_params(
 
 def _not_implemented(detail: str):
     raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=detail)
+
+
+async def _ensure_movie_exists(movie_id: int, db: AsyncSession) -> None:
+    exists_stmt = select(MovieModel.id).where(MovieModel.id == movie_id)
+    if (await db.execute(exists_stmt)).scalar() is None:
+        raise HTTPException(status_code=404, detail="Movie not found.")
 
 
 def _apply_movie_filters(
@@ -375,3 +382,68 @@ async def create_movie():
 @router.get("/{movie_id}", summary="Retrieve movie (stub)")
 async def get_movie(movie_id: int):
     _not_implemented("Movie retrieval is not implemented yet.")
+
+
+async def _upsert_movie_reaction(
+    *,
+    movie_id: int,
+    reaction: UserReactionsEnum,
+    db: AsyncSession,
+    current_user: UserModel,
+) -> None:
+    await _ensure_movie_exists(movie_id=movie_id, db=db)
+
+    stmt = select(MovieReactionModel).where(
+        MovieReactionModel.movie_id == movie_id,
+        MovieReactionModel.user_id == current_user.id,
+    )
+    existing_reaction = (await db.execute(stmt)).scalars().first()
+    if existing_reaction:
+        existing_reaction.reaction = reaction
+    else:
+        db.add(
+            MovieReactionModel(
+                movie_id=movie_id,
+                user_id=current_user.id,
+                reaction=reaction,
+            )
+        )
+    await db.commit()
+
+
+@router.post(
+    "/{movie_id}/like",
+    summary="Like a movie",
+    response_model=MessageResponseSchema,
+)
+async def like_movie(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> MessageResponseSchema:
+    await _upsert_movie_reaction(
+        movie_id=movie_id,
+        reaction=UserReactionsEnum.LIKE,
+        db=db,
+        current_user=current_user,
+    )
+    return MessageResponseSchema(message="Movie liked.")
+
+
+@router.post(
+    "/{movie_id}/dislike",
+    summary="Dislike a movie",
+    response_model=MessageResponseSchema,
+)
+async def dislike_movie(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> MessageResponseSchema:
+    await _upsert_movie_reaction(
+        movie_id=movie_id,
+        reaction=UserReactionsEnum.DISLIKE,
+        db=db,
+        current_user=current_user,
+    )
+    return MessageResponseSchema(message="Movie disliked.")
