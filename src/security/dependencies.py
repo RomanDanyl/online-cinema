@@ -1,4 +1,4 @@
-from typing import Sequence, Callable
+from typing import Sequence, Callable, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -11,6 +11,10 @@ from exceptions import BaseSecurityError
 from security.interfaces import JWTAuthManagerInterface
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/accounts/login/")
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/accounts/login/",
+    auto_error=False,
+)
 
 
 async def get_current_user(
@@ -57,11 +61,55 @@ async def get_current_user(
     return user
 
 
+async def get_optional_user(
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db),
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
+) -> Optional[UserModel]:
+    if not token:
+        return None
+
+    try:
+        payload = jwt_manager.decode_access_token(token)
+    except BaseSecurityError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(error),
+        )
+
+    user_id = payload.get("user_id")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token.",
+        )
+
+    result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not activated.",
+        )
+
+    return user
+
+
 def require_roles(allowed_roles: Sequence[UserGroupEnum]) -> Callable:
     """
     Return role checking dependency.
     """
-    async def dependency(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+
+    async def dependency(
+        current_user: UserModel = Depends(get_current_user),
+    ) -> UserModel:
         if current_user.group.name not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
