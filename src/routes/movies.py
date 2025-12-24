@@ -447,3 +447,63 @@ async def dislike_movie(
         current_user=current_user,
     )
     return MessageResponseSchema(message="Movie disliked.")
+
+
+@router.post(
+    "/{movie_id}/favorites",
+    summary="Add movie to favorites",
+    response_model=MessageResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_movie_to_favorites(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> MessageResponseSchema:
+    await _ensure_movie_exists(movie_id=movie_id, db=db)
+
+    favorite_exists_stmt = select(MovieFavoriteModel.id).where(
+        MovieFavoriteModel.movie_id == movie_id,
+        MovieFavoriteModel.user_id == current_user.id,
+    )
+    if (await db.execute(favorite_exists_stmt)).scalar() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Movie already in favorites.",
+        )
+
+    db.add(
+        MovieFavoriteModel(
+            movie_id=movie_id,
+            user_id=current_user.id,
+        )
+    )
+    await db.commit()
+
+    return MessageResponseSchema(message="Movie added to favorites.")
+
+
+@router.delete(
+    "/{movie_id}/favorites",
+    summary="Remove movie from favorites",
+    response_model=MessageResponseSchema,
+)
+async def remove_movie_from_favorites(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> MessageResponseSchema:
+    await _ensure_movie_exists(movie_id=movie_id, db=db)
+
+    favorite_stmt = select(MovieFavoriteModel).where(
+        MovieFavoriteModel.movie_id == movie_id,
+        MovieFavoriteModel.user_id == current_user.id,
+    )
+    favorite = (await db.execute(favorite_stmt)).scalars().first()
+    if not favorite:
+        raise HTTPException(status_code=404, detail="Movie not in favorites.")
+
+    await db.delete(favorite)
+    await db.commit()
+
+    return MessageResponseSchema(message="Movie removed from favorites.")
