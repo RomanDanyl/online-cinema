@@ -19,6 +19,22 @@ class GenreSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GenreWithMoviesCountSchema(BaseModel):
+    id: int
+    name: str
+    movies_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class GenreListResponseSchema(BaseModel):
+    items: List[GenreWithMoviesCountSchema]
+
+
+class MovieRatingRequestSchema(BaseModel):
+    rating: int = Field(..., ge=1, le=10, description="Rating from 1 to 10")
+
+
 class MovieDirectorSchema(BaseModel):
     id: int
     name: str

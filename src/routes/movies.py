@@ -28,7 +28,12 @@ from database import (
     UserModel,
 )
 from schemas import MessageResponseSchema
-from schemas.movies import MovieListResponseSchema, MovieListItemSchema
+from schemas.movies import (
+    MovieListResponseSchema,
+    MovieListItemSchema,
+    GenreListResponseSchema,
+    GenreWithMoviesCountSchema, MovieRatingRequestSchema,
+)
 from security.dependencies import get_current_user, get_optional_user
 
 router = APIRouter()
@@ -303,6 +308,36 @@ async def _fetch_movie_list(
 
 
 @router.get(
+    "/genres",
+    summary="List genres with movies count",
+    response_model=GenreListResponseSchema,
+)
+async def list_genres(db: AsyncSession = Depends(get_db)) -> GenreListResponseSchema:
+    genre_counts_stmt = (
+        select(
+            GenreModel.id,
+            GenreModel.name,
+            func.count(MovieModel.id).label("movies_count"),
+        )
+        .join(MovieModel.genres, isouter=True)
+        .group_by(GenreModel.id)
+        .order_by(GenreModel.name.asc())
+    )
+
+    genres = (await db.execute(genre_counts_stmt)).all()
+    items = [
+        GenreWithMoviesCountSchema(
+            id=genre.id,
+            name=genre.name,
+            movies_count=genre.movies_count or 0,
+        )
+        for genre in genres
+    ]
+
+    return GenreListResponseSchema(items=items)
+
+
+@router.get(
     "/",
     summary="List movies",
     response_model=MovieListResponseSchema,
@@ -507,3 +542,39 @@ async def remove_movie_from_favorites(
     await db.commit()
 
     return MessageResponseSchema(message="Movie removed from favorites.")
+
+
+@router.post(
+    "/{movie_id}/rating",
+    summary="Rate a movie",
+    response_model=MessageResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def rate_movie(
+    movie_id: int,
+    payload: MovieRatingRequestSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> MessageResponseSchema:
+    await _ensure_movie_exists(movie_id=movie_id, db=db)
+
+    rating_stmt = select(MovieRatingModel).where(
+        MovieRatingModel.movie_id == movie_id,
+        MovieRatingModel.user_id == current_user.id,
+    )
+    existing_rating = (await db.execute(rating_stmt)).scalars().first()
+
+    if existing_rating:
+        existing_rating.rating = payload.rating
+    else:
+        db.add(
+            MovieRatingModel(
+                movie_id=movie_id,
+                user_id=current_user.id,
+                rating=payload.rating,
+            )
+        )
+
+    await db.commit()
+
+    return MessageResponseSchema(message="Rating saved.")
