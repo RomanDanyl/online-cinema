@@ -46,3 +46,20 @@ class EmailSenderInterface(ABC):
             login_link (str): The login link to include in the email.
         """
         pass
+
+    @abstractmethod
+    async def send_comment_notification(
+            self,
+            email: str,
+            subject: str,
+            html_content: str,
+    ) -> None:
+        """
+        Send a notification related to movie comments.
+
+        Args:
+            email: Recipient email address.
+            subject: Email subject.
+            html_content: Email body in HTML format.
+        """
+        pass
