@@ -594,18 +594,6 @@ async def rate_movie(
     return MessageResponseSchema(message="Rating saved.")
 
 
-def _build_comment_notification_html(
-    movie_name: str,
-    comment_text: str,
-    intro_message: str,
-) -> str:
-    return (
-        f"<p>{intro_message}</p>"
-        f"<p><strong>Movie:</strong> {movie_name}</p>"
-        f"<p><strong>Comment:</strong> {comment_text}</p>"
-    )
-
-
 async def _send_comment_notification(
     *,
     recipient: UserModel,
@@ -618,16 +606,12 @@ async def _send_comment_notification(
 ) -> None:
     if recipient.email is None or recipient.id == actor.id:
         return
-
-    html_content = _build_comment_notification_html(
+    await email_sender.send_comment_notification(
+        email=recipient.email,
+        subject=subject,
+        intro_message=intro_message,
         movie_name=movie.name,
         comment_text=comment_text,
-        intro_message=intro_message,
-    )
-    await email_sender.send_comment_notification(
-        recipient.email,
-        subject,
-        html_content,
     )
 
 

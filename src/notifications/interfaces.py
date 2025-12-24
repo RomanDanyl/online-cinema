@@ -54,7 +54,9 @@ class EmailSenderInterface(ABC):
         self,
         email: str,
         subject: str,
-        html_content: str,
+        intro_message: str,
+        movie_name: str,
+        comment_text: str,
     ) -> None:
         """
         Send a notification related to movie comments.
@@ -62,6 +64,8 @@ class EmailSenderInterface(ABC):
         Args:
             email: Recipient email address.
             subject: Email subject.
-            html_content: Email body in HTML format.
+            intro_message: Introductory text describing the interaction.
+            movie_name: Name of the related movie.
+            comment_text: Text of the related comment.
         """
         pass

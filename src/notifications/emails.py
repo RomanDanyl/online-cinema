@@ -23,6 +23,7 @@ class EmailSender(EmailSenderInterface):
         activation_complete_email_template_name: str,
         password_email_template_name: str,
         password_complete_email_template_name: str,
+        comment_notification_email_template_name: str,
     ):
         self._hostname = hostname
         self._port = port
@@ -36,6 +37,9 @@ class EmailSender(EmailSenderInterface):
         self._password_email_template_name = password_email_template_name
         self._password_complete_email_template_name = (
             password_complete_email_template_name
+        )
+        self._comment_notification_email_template_name = (
+            comment_notification_email_template_name
         )
 
         self._env = Environment(loader=FileSystemLoader(template_dir))
@@ -132,7 +136,9 @@ class EmailSender(EmailSenderInterface):
         self,
         email: str,
         subject: str,
-        html_content: str,
+        intro_message: str,
+        movie_name: str,
+        comment_text: str,
     ) -> None:
         """
         Send a notification about comment interactions (reply or like).
@@ -140,6 +146,16 @@ class EmailSender(EmailSenderInterface):
         Args:
             email: Recipient email address.
             subject: Notification subject.
-            html_content: Notification body in HTML.
+            intro_message: Introductory text describing the interaction.
+            movie_name: Name of the movie the comment relates to.
+            comment_text: Text of the comment.
         """
+        template = self._env.get_template(
+            self._comment_notification_email_template_name
+        )
+        html_content = template.render(
+            intro_message=intro_message,
+            movie_name=movie_name,
+            comment_text=comment_text,
+        )
         await self._send_email(email, subject, html_content)
