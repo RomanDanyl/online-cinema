@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
-from database import Base
+from database import Base, MovieCommentLikeModel
 from database.models.movies import (
     MovieRatingModel,
     MovieReactionModel,
@@ -110,6 +110,9 @@ class UserModel(Base):
     )
 
     movie_comments: Mapped[List["MovieCommentModel"]] = relationship(
+        back_populates="user"
+    )
+    liked_comments: Mapped[List["MovieCommentLikeModel"]] = relationship(
         back_populates="user"
     )
     cart: Mapped[Optional["CartModel"]] = relationship(

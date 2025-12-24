@@ -273,6 +273,10 @@ class MovieCommentModel(Base):
 
     text: Mapped[str] = mapped_column(Text, nullable=False)
 
+    parent_comment_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("movie_comments.id", ondelete="CASCADE"), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -281,3 +285,39 @@ class MovieCommentModel(Base):
 
     user: Mapped["UserModel"] = relationship(back_populates="movie_comments")
     movie: Mapped["MovieModel"] = relationship(back_populates="comments")
+
+    parent_comment: Mapped[Optional["MovieCommentModel"]] = relationship(
+        back_populates="replies",
+        remote_side="MovieCommentModel.id",
+    )
+    replies: Mapped[List["MovieCommentModel"]] = relationship(
+        back_populates="parent_comment", cascade="all, delete-orphan"
+    )
+    likes: Mapped[List["MovieCommentLikeModel"]] = relationship(
+        back_populates="comment", cascade="all, delete-orphan"
+    )
+
+
+class MovieCommentLikeModel(Base):
+    __tablename__ = "movie_comment_likes"
+    __table_args__ = (
+        UniqueConstraint("user_id", "comment_id", name="uq_comment_like_user_comment"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    comment_id: Mapped[int] = mapped_column(
+        ForeignKey("movie_comments.id", ondelete="CASCADE"), nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    user: Mapped["UserModel"] = relationship(back_populates="liked_comments")
+    comment: Mapped[MovieCommentModel] = relationship(back_populates="likes")

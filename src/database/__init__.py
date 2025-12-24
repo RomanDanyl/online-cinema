@@ -18,6 +18,7 @@ from database.models.movies import (
     MovieModel,
     MovieRatingModel,
     MovieCommentModel,
+    MovieCommentLikeModel,
     MovieFavoriteModel,
     MovieReactionModel,
     UserReactionsEnum,
