@@ -32,7 +32,8 @@ from schemas.movies import (
     MovieListResponseSchema,
     MovieListItemSchema,
     GenreListResponseSchema,
-    GenreWithMoviesCountSchema, MovieRatingRequestSchema,
+    GenreWithMoviesCountSchema,
+    MovieRatingRequestSchema,
 )
 from security.dependencies import get_current_user, get_optional_user
 
