@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
-from database import Base, MovieCommentLikeModel
+from database import Base
 from database.models.movies import (
     MovieRatingModel,
     MovieReactionModel,
@@ -28,7 +28,7 @@ from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
 
 if TYPE_CHECKING:
-    from database import CartModel, OrderModel, PaymentModel
+    from database import CartModel, OrderModel, PaymentModel, MovieCommentLikeModel
 
 
 class UserGroupEnum(str, enum.Enum):
