@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, aliased
 
+from config import get_accounts_email_notificator
 from database import (
     get_db,
     MovieModel,
@@ -25,15 +26,16 @@ from database import (
     StarModel,
     DirectorModel,
     UserReactionsEnum,
-    UserModel,
+    UserModel, MovieCommentLikeModel,
 )
+from notifications import EmailSenderInterface
 from schemas import MessageResponseSchema
 from schemas.movies import (
     MovieListResponseSchema,
     MovieListItemSchema,
     GenreListResponseSchema,
     GenreWithMoviesCountSchema,
-    MovieRatingRequestSchema,
+    MovieRatingRequestSchema, MovieCommentResponseSchema, MovieCommentCreateSchema,
 )
 from security.dependencies import get_current_user, get_optional_user
 
@@ -94,6 +96,14 @@ async def _ensure_movie_exists(movie_id: int, db: AsyncSession) -> None:
     exists_stmt = select(MovieModel.id).where(MovieModel.id == movie_id)
     if (await db.execute(exists_stmt)).scalar() is None:
         raise HTTPException(status_code=404, detail="Movie not found.")
+
+
+async def _get_movie_or_404(movie_id: int, db: AsyncSession) -> MovieModel:
+    movie_stmt = select(MovieModel).where(MovieModel.id == movie_id)
+    movie = (await db.execute(movie_stmt)).scalar_one_or_none()
+    if movie is None:
+        raise HTTPException(status_code=404, detail="Movie not found.")
+    return movie
 
 
 def _apply_movie_filters(
@@ -579,3 +589,177 @@ async def rate_movie(
     await db.commit()
 
     return MessageResponseSchema(message="Rating saved.")
+
+
+def _build_comment_notification_html(
+    movie_name: str,
+    comment_text: str,
+    intro_message: str,
+) -> str:
+    return (
+        f"<p>{intro_message}</p>"
+        f"<p><strong>Movie:</strong> {movie_name}</p>"
+        f"<p><strong>Comment:</strong> {comment_text}</p>"
+    )
+
+
+async def _send_comment_notification(
+    *,
+    recipient: UserModel,
+    actor: UserModel,
+    movie: MovieModel,
+    subject: str,
+    intro_message: str,
+    comment_text: str,
+    email_sender: EmailSenderInterface,
+) -> None:
+    if recipient.email is None or recipient.id == actor.id:
+        return
+
+    html_content = _build_comment_notification_html(
+        movie_name=movie.name,
+        comment_text=comment_text,
+        intro_message=intro_message,
+    )
+    await email_sender.send_comment_notification(
+        recipient.email,
+        subject,
+        html_content,
+    )
+
+
+async def _get_parent_comment(
+    *,
+    parent_comment_id: int,
+    movie_id: int,
+    db: AsyncSession,
+) -> MovieCommentModel:
+    parent_stmt = (
+        select(MovieCommentModel)
+        .options(selectinload(MovieCommentModel.user))
+        .where(MovieCommentModel.id == parent_comment_id)
+    )
+    parent_comment = (await db.execute(parent_stmt)).scalars().first()
+    if not parent_comment:
+        raise HTTPException(status_code=404, detail="Parent comment not found.")
+    if parent_comment.movie_id != movie_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Parent comment does not belong to this movie.",
+        )
+    return parent_comment
+
+
+async def _get_comment_with_relations(
+    comment_id: int, db: AsyncSession
+) -> Optional[MovieCommentModel]:
+    stmt = (
+        select(MovieCommentModel)
+        .options(
+            selectinload(MovieCommentModel.user),
+            selectinload(MovieCommentModel.movie),
+        )
+        .where(MovieCommentModel.id == comment_id)
+    )
+    return (await db.execute(stmt)).scalars().first()
+
+
+@router.post(
+    "/{movie_id}/comments",
+    summary="Create movie comment",
+    response_model=MovieCommentResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_movie_comment(
+    movie_id: int,
+    payload: MovieCommentCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+) -> MovieCommentResponseSchema:
+    movie = await _get_movie_or_404(movie_id=movie_id, db=db)
+    parent_comment: Optional[MovieCommentModel] = None
+
+    if payload.parent_comment_id is not None:
+        parent_comment = await _get_parent_comment(
+            parent_comment_id=payload.parent_comment_id,
+            movie_id=movie_id,
+            db=db,
+        )
+
+    comment = MovieCommentModel(
+        movie_id=movie_id,
+        user_id=current_user.id,
+        text=payload.text,
+        parent_comment_id=payload.parent_comment_id,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+
+    if parent_comment:
+        await _send_comment_notification(
+            recipient=parent_comment.user,
+            actor=current_user,
+            movie=movie,
+            subject="New reply to your comment",
+            intro_message=(
+                f'Your comment on "{movie.name}" received a reply from '
+                f"{current_user.email}."
+            ),
+            comment_text=payload.text,
+            email_sender=email_sender,
+        )
+
+    return MovieCommentResponseSchema.model_validate(comment)
+
+
+@router.post(
+    "/comments/{comment_id}/like",
+    summary="Like a movie comment",
+    response_model=MessageResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def like_movie_comment(
+    comment_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
+) -> MessageResponseSchema:
+    comment = await _get_comment_with_relations(comment_id=comment_id, db=db)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found.")
+
+    like_stmt = select(MovieCommentLikeModel.id).where(
+        MovieCommentLikeModel.comment_id == comment_id,
+        MovieCommentLikeModel.user_id == current_user.id,
+    )
+    if (await db.execute(like_stmt)).scalar() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Comment already liked.",
+        )
+
+    db.add(
+        MovieCommentLikeModel(
+            comment_id=comment_id,
+            user_id=current_user.id,
+        )
+    )
+    await db.commit()
+
+    if comment.user_id != current_user.id:
+        await _send_comment_notification(
+            recipient=comment.user,
+            actor=current_user,
+            movie=comment.movie,
+            subject="Your comment received a like",
+            intro_message=(
+                f'Your comment on "{comment.movie.name}" received a like from '
+                f"{current_user.email}."
+            ),
+            comment_text=comment.text,
+            email_sender=email_sender,
+        )
+
+    return MessageResponseSchema(message="Comment liked.")

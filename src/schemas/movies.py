@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import List, Optional
@@ -85,3 +85,21 @@ class MovieListResponseSchema(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class MovieCommentCreateSchema(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+    parent_comment_id: Optional[int] = Field(
+        None, description="Optional parent comment id for replies", ge=1
+    )
+
+
+class MovieCommentResponseSchema(BaseModel):
+    id: int
+    movie_id: int
+    user_id: int
+    text: str
+    parent_comment_id: Optional[int]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
