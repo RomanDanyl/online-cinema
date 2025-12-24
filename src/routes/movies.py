@@ -26,7 +26,8 @@ from database import (
     StarModel,
     DirectorModel,
     UserReactionsEnum,
-    UserModel, MovieCommentLikeModel,
+    UserModel,
+    MovieCommentLikeModel,
 )
 from notifications import EmailSenderInterface
 from schemas import MessageResponseSchema
@@ -35,7 +36,9 @@ from schemas.movies import (
     MovieListItemSchema,
     GenreListResponseSchema,
     GenreWithMoviesCountSchema,
-    MovieRatingRequestSchema, MovieCommentResponseSchema, MovieCommentCreateSchema,
+    MovieRatingRequestSchema,
+    MovieCommentResponseSchema,
+    MovieCommentCreateSchema,
 )
 from security.dependencies import get_current_user, get_optional_user
 
