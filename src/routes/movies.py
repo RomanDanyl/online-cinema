@@ -53,12 +53,6 @@ def _not_implemented(detail: str):
     raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=detail)
 
 
-async def _ensure_movie_exists(movie_id: int, db: AsyncSession) -> None:
-    exists_stmt = select(MovieModel.id).where(MovieModel.id == movie_id)
-    if (await db.execute(exists_stmt)).scalar() is None:
-        raise HTTPException(status_code=404, detail="Movie not found.")
-
-
 async def _get_movie_or_404(movie_id: int, db: AsyncSession) -> MovieModel:
     movie_stmt = select(MovieModel).where(MovieModel.id == movie_id)
     movie = (await db.execute(movie_stmt)).scalar_one_or_none()
@@ -152,6 +146,7 @@ async def _fetch_movie_list(
             func.avg(MovieRatingModel.rating).label("avg_rating"),
             func.count(MovieRatingModel.id).label("ratings_count"),
         )
+        .join(page_ids_sq, page_ids_sq.c.id == MovieRatingModel.movie_id)
         .group_by(MovieRatingModel.movie_id)
         .subquery()
     )
@@ -163,6 +158,7 @@ async def _fetch_movie_list(
             .filter(MovieReactionModel.reaction == UserReactionsEnum.LIKE)
             .label("likes_count"),
         )
+        .join(page_ids_sq, page_ids_sq.c.id == MovieReactionModel.movie_id)
         .group_by(MovieReactionModel.movie_id)
         .subquery()
     )
@@ -172,6 +168,7 @@ async def _fetch_movie_list(
             MovieCommentModel.movie_id.label("movie_id"),
             func.count(MovieCommentModel.id).label("comments_count"),
         )
+        .join(page_ids_sq, page_ids_sq.c.id == MovieCommentModel.movie_id)
         .group_by(MovieCommentModel.movie_id)
         .subquery()
     )
