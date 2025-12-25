@@ -705,23 +705,17 @@ async def like_movie_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found.")
 
-    like_stmt = select(MovieCommentLikeModel.id).where(
-        MovieCommentLikeModel.comment_id == comment_id,
-        MovieCommentLikeModel.user_id == current_user.id,
+    stmt = (
+        pg_insert(MovieCommentLikeModel)
+        .values(comment_id=comment_id, user_id=current_user.id)
+        .on_conflict_do_nothing(index_elements=["comment_id", "user_id"])
+        .returning(MovieCommentLikeModel.id)
     )
-    if (await db.execute(like_stmt)).scalar() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Comment already liked.",
-        )
-
-    db.add(
-        MovieCommentLikeModel(
-            comment_id=comment_id,
-            user_id=current_user.id,
-        )
-    )
+    inserted_id = (await db.execute(stmt)).scalar()
     await db.commit()
+
+    if inserted_id is None:
+        raise HTTPException(status_code=409, detail="Comment already liked.")
 
     if comment.user_id != current_user.id:
         await _send_comment_notification(
