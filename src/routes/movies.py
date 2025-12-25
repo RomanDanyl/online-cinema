@@ -10,6 +10,7 @@ from sqlalchemy import (
     desc,
     literal,
     case,
+    delete,
 )
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -540,18 +541,19 @@ async def remove_movie_from_favorites(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
-    await _ensure_movie_exists(movie_id=movie_id, db=db)
-
-    favorite_stmt = select(MovieFavoriteModel).where(
-        MovieFavoriteModel.movie_id == movie_id,
-        MovieFavoriteModel.user_id == current_user.id,
+    stmt = (
+        delete(MovieFavoriteModel)
+        .where(
+            MovieFavoriteModel.movie_id == movie_id,
+            MovieFavoriteModel.user_id == current_user.id,
+        )
+        .returning(MovieFavoriteModel.id)
     )
-    favorite = (await db.execute(favorite_stmt)).scalars().first()
-    if not favorite:
-        raise HTTPException(status_code=404, detail="Movie not in favorites.")
-
-    await db.delete(favorite)
+    deleted_id = (await db.execute(stmt)).scalar()
     await db.commit()
+
+    if deleted_id is None:
+        raise HTTPException(status_code=404, detail="Movie not in favorites.")
 
     return MessageResponseSchema(message="Movie removed from favorites.")
 
