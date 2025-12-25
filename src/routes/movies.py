@@ -83,7 +83,7 @@ def _apply_movie_filters(
         )
 
     if genre_id:
-        base_stmt = base_stmt.join(MovieModel.genres).where(GenreModel.id == genre_id)
+        base_stmt = base_stmt.where(MovieModel.genres.any(GenreModel.id == genre_id))
 
     if year is not None:
         base_stmt = base_stmt.where(MovieModel.year == year)
