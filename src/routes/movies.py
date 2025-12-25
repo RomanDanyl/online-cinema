@@ -611,19 +611,17 @@ async def _get_parent_comment(
     movie_id: int,
     db: AsyncSession,
 ) -> MovieCommentModel:
-    parent_stmt = (
+    stmt = (
         select(MovieCommentModel)
         .options(selectinload(MovieCommentModel.user))
-        .where(MovieCommentModel.id == parent_comment_id)
+        .where(
+            MovieCommentModel.id == parent_comment_id,
+            MovieCommentModel.movie_id == movie_id,
+        )
     )
-    parent_comment = (await db.execute(parent_stmt)).scalars().first()
+    parent_comment = (await db.execute(stmt)).scalar_one_or_none()
     if not parent_comment:
         raise HTTPException(status_code=404, detail="Parent comment not found.")
-    if parent_comment.movie_id != movie_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Parent comment does not belong to this movie.",
-        )
     return parent_comment
 
 
