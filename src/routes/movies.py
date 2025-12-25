@@ -443,24 +443,20 @@ async def _upsert_movie_reaction(
     db: AsyncSession,
     current_user: UserModel,
 ) -> None:
-    await _ensure_movie_exists(movie_id=movie_id, db=db)
-
-    stmt = select(MovieReactionModel).where(
-        MovieReactionModel.movie_id == movie_id,
-        MovieReactionModel.user_id == current_user.id,
-    )
-    existing_reaction = (await db.execute(stmt)).scalars().first()
-    if existing_reaction:
-        existing_reaction.reaction = reaction
-    else:
-        db.add(
-            MovieReactionModel(
-                movie_id=movie_id,
-                user_id=current_user.id,
-                reaction=reaction,
-            )
+    stmt = (
+        pg_insert(MovieReactionModel)
+        .values(movie_id=movie_id, user_id=current_user.id, reaction=reaction)
+        .on_conflict_do_update(
+            index_elements=["movie_id", "user_id"],
+            set_={"reaction": reaction},
         )
-    await db.commit()
+    )
+    try:
+        await db.execute(stmt)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=404, detail="Movie not found.")
 
 
 @router.post(
@@ -570,26 +566,20 @@ async def rate_movie(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
-    await _ensure_movie_exists(movie_id=movie_id, db=db)
-
-    rating_stmt = select(MovieRatingModel).where(
-        MovieRatingModel.movie_id == movie_id,
-        MovieRatingModel.user_id == current_user.id,
-    )
-    existing_rating = (await db.execute(rating_stmt)).scalars().first()
-
-    if existing_rating:
-        existing_rating.rating = payload.rating
-    else:
-        db.add(
-            MovieRatingModel(
-                movie_id=movie_id,
-                user_id=current_user.id,
-                rating=payload.rating,
-            )
+    stmt = (
+        pg_insert(MovieRatingModel)
+        .values(movie_id=movie_id, user_id=current_user.id, rating=payload.rating)
+        .on_conflict_do_update(
+            index_elements=["movie_id", "user_id"],
+            set_={"rating": payload.rating},
         )
-
-    await db.commit()
+    )
+    try:
+        await db.execute(stmt)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=404, detail="Movie not found.")
 
     return MessageResponseSchema(message="Rating saved.")
 
