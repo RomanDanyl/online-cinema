@@ -42,56 +42,11 @@ from schemas.movies import (
     MovieRatingRequestSchema,
     MovieCommentResponseSchema,
     MovieCommentCreateSchema,
+    MovieListQueryParams,
 )
 from security.dependencies import get_current_user, get_optional_user
 
 router = APIRouter()
-
-
-def get_movie_list_query_params(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1, le=50),
-    search: Optional[str] = Query(
-        None, description="Search by title, description, actor, or director"
-    ),
-    year: Optional[int] = Query(None, ge=1888, description="Filter by release year"),
-    year_from: Optional[int] = Query(
-        None, ge=1888, description="Filter by minimum release year"
-    ),
-    year_to: Optional[int] = Query(
-        None, ge=1888, description="Filter by maximum release year"
-    ),
-    imdb_from: Optional[float] = Query(
-        None, ge=0, le=10, description="Minimum IMDb rating"
-    ),
-    imdb_to: Optional[float] = Query(
-        None, ge=0, le=10, description="Maximum IMDb rating"
-    ),
-    genre_id: Optional[int] = Query(None, ge=1, description="Filter by genre"),
-    sort_by: str = Query(
-        "release_year",
-        pattern="^(price|release_year|popularity|imdb)$",
-        description="Sort movies by price, release year, popularity, or IMDb rating",
-    ),
-    sort_order: str = Query(
-        "desc",
-        pattern="^(asc|desc)$",
-        description="Sort order",
-    ),
-) -> dict:
-    return {
-        "search": search,
-        "year": year,
-        "year_from": year_from,
-        "year_to": year_to,
-        "imdb_from": imdb_from,
-        "imdb_to": imdb_to,
-        "genre_id": genre_id,
-        "sort_by": sort_by,
-        "sort_order": sort_order,
-        "page": page,
-        "per_page": per_page,
-    }
 
 
 def _not_implemented(detail: str):
@@ -360,7 +315,7 @@ async def list_genres(db: AsyncSession = Depends(get_db)) -> GenreListResponseSc
     response_model=MovieListResponseSchema,
 )
 async def list_movies(
-    query_params: dict = Depends(get_movie_list_query_params),
+    query_params: MovieListQueryParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current_user: Optional[UserModel] = Depends(get_optional_user),
 ) -> MovieListResponseSchema:
@@ -368,21 +323,21 @@ async def list_movies(
 
     base_stmt = _apply_movie_filters(
         base_stmt=base_stmt,
-        search=query_params["search"],
-        year=query_params["year"],
-        year_from=query_params["year_from"],
-        year_to=query_params["year_to"],
-        imdb_from=query_params["imdb_from"],
-        imdb_to=query_params["imdb_to"],
-        genre_id=query_params["genre_id"],
+        search=query_params.search,
+        year=query_params.year,
+        year_from=query_params.year_from,
+        year_to=query_params.year_to,
+        imdb_from=query_params.imdb_from,
+        imdb_to=query_params.imdb_to,
+        genre_id=query_params.genre_id,
     )
 
     return await _fetch_movie_list(
         base_stmt=base_stmt,
-        page=query_params["page"],
-        per_page=query_params["per_page"],
-        sort_by=query_params["sort_by"],
-        sort_order=query_params["sort_order"],
+        page=query_params.page,
+        per_page=query_params.per_page,
+        sort_by=query_params.sort_by,
+        sort_order=query_params.sort_order,
         db=db,
         current_user=current_user,
     )
@@ -394,7 +349,7 @@ async def list_movies(
     response_model=MovieListResponseSchema,
 )
 async def list_favorite_movies(
-    query_params: dict = Depends(get_movie_list_query_params),
+    query_params: MovieListQueryParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ) -> MovieListResponseSchema:
@@ -406,21 +361,21 @@ async def list_favorite_movies(
 
     base_stmt = _apply_movie_filters(
         base_stmt=base_stmt,
-        search=query_params["search"],
-        year=query_params["year"],
-        year_from=query_params["year_from"],
-        year_to=query_params["year_to"],
-        imdb_from=query_params["imdb_from"],
-        imdb_to=query_params["imdb_to"],
-        genre_id=query_params["genre_id"],
+        search=query_params.search,
+        year=query_params.year,
+        year_from=query_params.year_from,
+        year_to=query_params.year_to,
+        imdb_from=query_params.imdb_from,
+        imdb_to=query_params.imdb_to,
+        genre_id=query_params.genre_id,
     )
 
     return await _fetch_movie_list(
         base_stmt=base_stmt,
-        page=query_params["page"],
-        per_page=query_params["per_page"],
-        sort_by=query_params["sort_by"],
-        sort_order=query_params["sort_order"],
+        page=query_params.page,
+        per_page=query_params.per_page,
+        sort_by=query_params.sort_by,
+        sort_order=query_params.sort_order,
         db=db,
         current_user=current_user,
     )

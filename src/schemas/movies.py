@@ -2,9 +2,31 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from pydantic import BaseModel, Field
+
+
+class MovieListQueryParams(BaseModel):
+    page: int = Field(1, ge=1)
+    per_page: int = Field(10, ge=1, le=50)
+
+    search: Optional[str] = Field(
+        default=None,
+        description="Search by title, description, actor, or director",
+    )
+
+    year: Optional[int] = Field(default=None, ge=1888)
+    year_from: Optional[int] = Field(default=None, ge=1888)
+    year_to: Optional[int] = Field(default=None, ge=1888)
+
+    imdb_from: Optional[float] = Field(default=None, ge=0, le=10)
+    imdb_to: Optional[float] = Field(default=None, ge=0, le=10)
+
+    genre_id: Optional[int] = Field(default=None, ge=1)
+
+    sort_by: Literal["price", "release_year", "popularity", "imdb"] = "release_year"
+    sort_order: Literal["asc", "desc"] = "desc"
 
 
 class UserReactionsEnum(str, Enum):
