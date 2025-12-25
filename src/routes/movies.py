@@ -11,6 +11,8 @@ from sqlalchemy import (
     literal,
     case,
 )
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, aliased
 
@@ -509,25 +511,21 @@ async def add_movie_to_favorites(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
-    await _ensure_movie_exists(movie_id=movie_id, db=db)
-
-    favorite_exists_stmt = select(MovieFavoriteModel.id).where(
-        MovieFavoriteModel.movie_id == movie_id,
-        MovieFavoriteModel.user_id == current_user.id,
+    stmt = (
+        pg_insert(MovieFavoriteModel)
+        .values(movie_id=movie_id, user_id=current_user.id)
+        .on_conflict_do_nothing(index_elements=["movie_id", "user_id"])
+        .returning(MovieFavoriteModel.id)
     )
-    if (await db.execute(favorite_exists_stmt)).scalar() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Movie already in favorites.",
-        )
+    try:
+        inserted_id = (await db.execute(stmt)).scalar()
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=404, detail="Movie not found.")  # FK fail
 
-    db.add(
-        MovieFavoriteModel(
-            movie_id=movie_id,
-            user_id=current_user.id,
-        )
-    )
-    await db.commit()
+    if inserted_id is None:
+        raise HTTPException(status_code=409, detail="Movie already in favorites.")
 
     return MessageResponseSchema(message="Movie added to favorites.")
 
