@@ -71,6 +71,54 @@ class MovieStarSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GenreCreateSchema(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class GenreUpdateSchema(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class ActorCreateSchema(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class ActorUpdateSchema(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class MovieCreateSchema(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    year: int = Field(..., ge=1888)
+    time: int = Field(..., ge=1)
+    imdb: float = Field(..., ge=0, le=10)
+    votes: int = Field(..., ge=0)
+    meta_score: Optional[float] = Field(default=None, ge=0, le=100)
+    gross: Optional[float] = Field(default=None, ge=0)
+    description: str = Field(..., min_length=1)
+    price: Decimal = Field(..., gt=0)
+    certification_id: int = Field(..., ge=1)
+    genre_ids: List[int] = Field(default_factory=list)
+    star_ids: List[int] = Field(default_factory=list)
+    director_ids: List[int] = Field(default_factory=list)
+
+
+class MovieUpdateSchema(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    year: Optional[int] = Field(default=None, ge=1888)
+    time: Optional[int] = Field(default=None, ge=1)
+    imdb: Optional[float] = Field(default=None, ge=0, le=10)
+    votes: Optional[int] = Field(default=None, ge=0)
+    meta_score: Optional[float] = Field(default=None, ge=0, le=100)
+    gross: Optional[float] = Field(default=None, ge=0)
+    description: Optional[str] = Field(default=None, min_length=1)
+    price: Optional[Decimal] = Field(default=None, gt=0)
+    certification_id: Optional[int] = Field(default=None, ge=1)
+    genre_ids: Optional[List[int]]
+    star_ids: Optional[List[int]]
+    director_ids: Optional[List[int]]
+
+
 class MovieItemSchema(BaseModel):
     id: int
     uuid: uuid.UUID
