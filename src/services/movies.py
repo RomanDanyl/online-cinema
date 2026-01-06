@@ -41,7 +41,7 @@ from schemas.movies import (
     MovieListResponseSchema,
     MovieRatingRequestSchema,
     MovieStarSchema,
-    MovieUpdateSchema,
+    MovieUpdateSchema, MovieDetailSchema,
 )
 
 if TYPE_CHECKING:
@@ -259,6 +259,135 @@ async def fetch_movie_list(
         total=total_items,
         page=query.page,
         page_size=query.per_page,
+    )
+
+
+async def get_movie_details(
+    *,
+    db: AsyncSession,
+    movie_id: int,
+    current_user: Optional[UserModel],
+) -> MovieDetailSchema:
+    ratings_sq = (
+        select(
+            MovieRatingModel.movie_id.label("movie_id"),
+            func.avg(MovieRatingModel.rating).label("avg_rating"),
+            func.count(MovieRatingModel.id).label("ratings_count"),
+        )
+        .where(MovieRatingModel.movie_id == movie_id)
+        .group_by(MovieRatingModel.movie_id)
+        .subquery()
+    )
+
+    likes_sq = (
+        select(
+            MovieReactionModel.movie_id.label("movie_id"),
+            func.count(MovieReactionModel.id)
+            .filter(MovieReactionModel.reaction == UserReactionsEnum.LIKE)
+            .label("likes_count"),
+        )
+        .where(MovieReactionModel.movie_id == movie_id)
+        .group_by(MovieReactionModel.movie_id)
+        .subquery()
+    )
+
+    comments_sq = (
+        select(
+            MovieCommentModel.movie_id.label("movie_id"),
+            func.count(MovieCommentModel.id).label("comments_count"),
+        )
+        .where(MovieCommentModel.movie_id == movie_id)
+        .group_by(MovieCommentModel.movie_id)
+        .subquery()
+    )
+
+    user_fav = aliased(MovieFavoriteModel)
+    user_rating = aliased(MovieRatingModel)
+    user_reaction = aliased(MovieReactionModel)
+
+    if current_user:
+        is_favorite_col = case(
+            (user_fav.id.isnot(None), True),
+            else_=False,
+        ).label("is_favorite")
+        user_rating_col = user_rating.rating.label("user_rating")
+        user_reaction_col = user_reaction.reaction.label("user_reaction")
+    else:
+        is_favorite_col = literal(False).label("is_favorite")
+        user_rating_col = literal(None).label("user_rating")
+        user_reaction_col = literal(None).label("user_reaction")
+
+    stmt = (
+        select(
+            MovieModel,
+            ratings_sq.c.avg_rating,
+            ratings_sq.c.ratings_count,
+            likes_sq.c.likes_count,
+            comments_sq.c.comments_count,
+            is_favorite_col,
+            user_rating_col,
+            user_reaction_col,
+        )
+        .where(MovieModel.id == movie_id)
+        .outerjoin(ratings_sq, ratings_sq.c.movie_id == MovieModel.id)
+        .outerjoin(likes_sq, likes_sq.c.movie_id == MovieModel.id)
+        .outerjoin(comments_sq, comments_sq.c.movie_id == MovieModel.id)
+        .options(
+            selectinload(MovieModel.genres),
+            selectinload(MovieModel.stars),
+            selectinload(MovieModel.directors),
+            selectinload(MovieModel.certification),
+        )
+    )
+
+    if current_user:
+        stmt = (
+            stmt.outerjoin(
+                user_fav,
+                and_(
+                    user_fav.movie_id == MovieModel.id,
+                    user_fav.user_id == current_user.id,
+                ),
+            )
+            .outerjoin(
+                user_rating,
+                and_(
+                    user_rating.movie_id == MovieModel.id,
+                    user_rating.user_id == current_user.id,
+                ),
+            )
+            .outerjoin(
+                user_reaction,
+                and_(
+                    user_reaction.movie_id == MovieModel.id,
+                    user_reaction.user_id == current_user.id,
+                ),
+            )
+        )
+
+    row = (await db.execute(stmt)).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Movie not found.")
+
+    ratings_count = int(row.ratings_count or 0)
+    avg_rating = (
+        float(row.avg_rating)
+        if row.avg_rating is not None and ratings_count > 0
+        else None
+    )
+
+    movie = row[0]
+    return MovieDetailSchema.model_validate(
+        movie,
+        update={
+            "avg_rating": avg_rating,
+            "ratings_count": ratings_count,
+            "likes_count": int(row.likes_count or 0),
+            "comments_count": int(row.comments_count or 0),
+            "is_favorite": bool(row.is_favorite),
+            "user_rating": row.user_rating,
+            "user_reaction": row.user_reaction,
+        },
     )
 
 
