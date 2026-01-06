@@ -31,7 +31,8 @@ from schemas.movies import (
     MovieRatingRequestSchema,
     MovieStarSchema,
     MovieUpdateSchema,
-    GenreListResponseSchema, MovieDetailSchema,
+    GenreListResponseSchema,
+    MovieDetailSchema,
 )
 from security.dependencies import get_current_user, get_optional_user, require_roles
 from services import movies as movie_service
