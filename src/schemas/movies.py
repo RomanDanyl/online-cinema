@@ -53,6 +53,13 @@ class GenreListResponseSchema(BaseModel):
     items: List[GenreWithMoviesCountSchema]
 
 
+class CertificationSchema(BaseModel):
+    id: int
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
 class MovieRatingRequestSchema(BaseModel):
     rating: int = Field(..., ge=1, le=10, description="Rating from 1 to 10")
 
@@ -137,24 +144,31 @@ class MovieItemSchema(BaseModel):
 
 
 class MovieListItemSchema(MovieItemSchema):
-    avg_rating: float
-    ratings_count: int
-    likes_count: int
-    comments_count: int
+    avg_rating: Optional[float] = Field(default=None, ge=0, le=10)
+    ratings_count: int = 0
+    likes_count: int = 0
+    comments_count: int = 0
 
     is_favorite: Optional[bool]
     user_rating: Optional[int]
 
     user_reaction: Optional[UserReactionsEnum]
 
-    model_config = {"from_attributes": False}
+    model_config = {"from_attributes": True}
 
 
 class MovieListResponseSchema(BaseModel):
-    items: List[MovieItemSchema]
+    items: List[MovieListItemSchema]
     total: int
     page: int
     page_size: int
+
+
+class MovieDetailSchema(MovieListItemSchema):
+    description: str
+    meta_score: Optional[float] = None
+    gross: Optional[float] = None
+    certification: CertificationSchema
 
 
 class MovieCommentCreateSchema(BaseModel):

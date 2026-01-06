@@ -41,7 +41,8 @@ from schemas.movies import (
     MovieListResponseSchema,
     MovieRatingRequestSchema,
     MovieStarSchema,
-    MovieUpdateSchema, MovieDetailSchema,
+    MovieUpdateSchema,
+    MovieDetailSchema,
 )
 
 if TYPE_CHECKING:
