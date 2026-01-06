@@ -31,6 +31,7 @@ from schemas.movies import (
     MovieRatingRequestSchema,
     MovieStarSchema,
     MovieUpdateSchema,
+    GenreListResponseSchema, MovieDetailSchema,
 )
 from security.dependencies import get_current_user, get_optional_user, require_roles
 from services import movies as movie_service
@@ -70,6 +71,32 @@ async def list_movies(
     return await movie_service.fetch_movie_list(
         db=db, base_stmt=base_stmt, query=query, current_user=current_user
     )
+
+
+@public_router.get(
+    "/{movie_id}",
+    summary="Get movie details",
+    response_model=MovieDetailSchema,
+)
+async def get_movie_details(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[UserModel] = Depends(get_optional_user),
+) -> MovieDetailSchema:
+    return await movie_service.get_movie_details(
+        db=db, movie_id=movie_id, current_user=current_user
+    )
+
+
+@public_router.get(
+    "/genres",
+    summary="List genres with movie counts",
+    response_model=GenreListResponseSchema,
+)
+async def list_genres_with_counts(
+    db: AsyncSession = Depends(get_db),
+) -> GenreListResponseSchema:
+    return await movie_service.list_genres_with_counts(db=db)
 
 
 @public_router.get(
