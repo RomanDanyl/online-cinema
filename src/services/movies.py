@@ -24,6 +24,7 @@ from database import (
     UserModel,
     UserReactionsEnum,
 )
+from database.models.movies import movie_genres
 
 from schemas import MessageResponseSchema
 from schemas.movies import (
@@ -43,6 +44,7 @@ from schemas.movies import (
     MovieStarSchema,
     MovieUpdateSchema,
     MovieDetailSchema,
+    GenreListResponseSchema, GenreWithMoviesCountSchema,
 )
 
 if TYPE_CHECKING:
@@ -516,6 +518,7 @@ async def get_comment_with_relations(
     return (await db.execute(stmt)).scalars().first()
 
 
+# move this to main func
 async def send_comment_notification(
     *,
     recipient: UserModel,
@@ -804,6 +807,26 @@ async def list_genres(*, db: AsyncSession) -> list[GenreSchema]:
     stmt = select(GenreModel).order_by(GenreModel.name.asc())
     genres = (await db.execute(stmt)).scalars().all()
     return [GenreSchema.model_validate(g) for g in genres]
+
+
+async def list_genres_with_counts(*, db: AsyncSession) -> GenreListResponseSchema:
+    stmt = (
+        select(
+            GenreModel,
+            func.count(movie_genres.c.movie_id).label("movies_count"),
+        )
+        .outerjoin(movie_genres, movie_genres.c.genre_id == GenreModel.id)
+        .group_by(GenreModel.id)
+        .order_by(GenreModel.name.asc())
+    )
+    rows = (await db.execute(stmt)).all()
+    items = [
+        GenreWithMoviesCountSchema.model_validate(
+            row[0], update={"movies_count": int(row.movies_count or 0)}
+        )
+        for row in rows
+    ]
+    return GenreListResponseSchema(items=items)
 
 
 async def create_genre(*, db: AsyncSession, payload: GenreCreateSchema) -> GenreSchema:
