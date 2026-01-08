@@ -26,7 +26,17 @@ async def _cleanup_expired_tokens() -> None:
 
     async with get_db_contextmanager() as session:
         now = datetime.now(timezone.utc)
-        await session.execute(delete(ActivationTokenModel).where(ActivationTokenModel.expires_at < now))
+        await session.execute(
+            delete(ActivationTokenModel).where(ActivationTokenModel.expires_at < now)
+        )
+        await session.execute(
+            delete(PasswordResetTokenModel).where(
+                PasswordResetTokenModel.expires_at < now
+            )
+        )
+        await session.execute(
+            delete(RefreshTokenModel).where(RefreshTokenModel.expires_at < now)
+        )
 
         await session.commit()
 
