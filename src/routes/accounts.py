@@ -41,11 +41,13 @@ from schemas import (
     UserProfileUpdateSchema,
     UserResponseSchema,
     ChangePasswordRequestSchema,
+    UserRoleUpdateSchema,
 )
 from security.interfaces import JWTAuthManagerInterface
-from security.dependencies import get_current_user
+from security.dependencies import get_current_user, require_roles
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
+admin_access = Depends(require_roles(allowed_roles=(UserGroupEnum.ADMIN,)))
 
 
 def _serialize_user(user: UserModel) -> UserResponseSchema:
@@ -744,3 +746,93 @@ async def logout(
         await db.commit()
 
     return MessageResponseSchema(message="Logged out successfully.")
+
+
+@router.get(
+    "/admin/users/",
+    response_model=list[UserResponseSchema],
+    summary="List users",
+    dependencies=[admin_access],
+    status_code=status.HTTP_200_OK,
+)
+async def list_users(
+    db: AsyncSession = Depends(get_db),
+) -> list[UserResponseSchema]:
+    result = await db.execute(
+        select(UserModel)
+        .options(joinedload(UserModel.group), joinedload(UserModel.profile))
+        .order_by(UserModel.id)
+    )
+    users = result.scalars().all()
+    return [_serialize_user(user) for user in users]
+
+
+@router.patch(
+    "/admin/users/{user_id}/activate/",
+    response_model=MessageResponseSchema,
+    summary="Activate user manually",
+    dependencies=[admin_access],
+    status_code=status.HTTP_200_OK,
+)
+async def activate_user_manually(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponseSchema:
+    result = await db.execute(
+        select(UserModel)
+        .options(joinedload(UserModel.activation_token))
+        .where(UserModel.id == user_id)
+    )
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    user.is_active = True
+    if user.activation_token:
+        await db.delete(user.activation_token)
+
+    await db.commit()
+    return MessageResponseSchema(message="User account activated successfully.")
+
+
+@router.patch(
+    "/admin/users/{user_id}/role/",
+    response_model=UserResponseSchema,
+    summary="Update user role",
+    dependencies=[admin_access],
+    status_code=status.HTTP_200_OK,
+)
+async def update_user_role(
+    user_id: int,
+    payload: UserRoleUpdateSchema,
+    db: AsyncSession = Depends(get_db),
+) -> UserResponseSchema:
+    result = await db.execute(
+        select(UserModel)
+        .options(joinedload(UserModel.group))
+        .where(UserModel.id == user_id)
+    )
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    result = await db.execute(
+        select(UserGroupModel).where(UserGroupModel.name == payload.group)
+    )
+    group = result.scalars().first()
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User group not found.",
+        )
+
+    user.group = group
+    await db.commit()
+    await db.refresh(user)
+    return _serialize_user(user)
