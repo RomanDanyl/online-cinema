@@ -11,6 +11,8 @@ from schemas.cart import (
 from security.dependencies import get_current_user
 from services import cart as cart_service
 
+#add routes for moderator
+
 router = APIRouter()
 
 

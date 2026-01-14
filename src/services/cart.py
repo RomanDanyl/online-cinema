@@ -83,7 +83,7 @@ async def get_cart_items(
             .selectinload(MovieModel.genres)
         )
     )
-    cart = (await db.execute(stmt)).scalars().first()
+    cart = (await db.execute(stmt)).scalar_one_or_none()
     if not cart:
         return CartListResponseSchema(items=[])
     items = [_serialize_cart_item(item) for item in cart.items]
@@ -94,7 +94,7 @@ async def _get_or_create_cart(
     *, db: AsyncSession, current_user: UserModel
 ) -> CartModel:
     stmt = select(CartModel).where(CartModel.user_id == current_user.id)
-    cart = (await db.execute(stmt)).scalars().first()
+    cart = (await db.execute(stmt)).scalar_one_or_none()
     if cart:
         return cart
     cart = CartModel(user_id=current_user.id)
