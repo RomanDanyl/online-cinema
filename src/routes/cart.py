@@ -1,22 +1,61 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from database import UserModel, get_db
+from schemas.cart import (
+    CartActionResponseSchema,
+    CartItemCreateSchema,
+    CartItemResponseSchema,
+    CartListResponseSchema,
+)
+from security.dependencies import get_current_user
+from services import cart as cart_service
 
 router = APIRouter()
 
 
-def _not_implemented(detail: str):
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=detail)
+@router.get("/", summary="View cart", response_model=CartListResponseSchema)
+async def view_cart(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> CartListResponseSchema:
+    return await cart_service.get_cart_items(db=db, current_user=current_user)
 
 
-@router.get("/", summary="View cart (stub)")
-async def view_cart():
-    _not_implemented("Cart endpoints are not implemented yet.")
+@router.post(
+    "/items/",
+    summary="Add to cart",
+    response_model=CartItemResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_to_cart(
+    payload: CartItemCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> CartItemResponseSchema:
+    return await cart_service.add_cart_item(
+        db=db, current_user=current_user, movie_id=payload.movie_id
+    )
 
 
-@router.post("/items/", summary="Add to cart (stub)")
-async def add_to_cart():
-    _not_implemented("Cart modification is not implemented yet.")
+@router.delete(
+    "/items/{item_id}",
+    summary="Remove from cart",
+    response_model=CartActionResponseSchema,
+)
+async def remove_from_cart(
+    item_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> CartActionResponseSchema:
+    return await cart_service.remove_cart_item(
+        db=db, current_user=current_user, item_id=item_id
+    )
 
 
-@router.delete("/items/{item_id}", summary="Remove from cart (stub)")
-async def remove_from_cart(item_id: int):
-    _not_implemented("Cart modification is not implemented yet.")
+@router.delete("/", summary="Clear cart", response_model=CartActionResponseSchema)
+async def clear_cart(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> CartActionResponseSchema:
+    return await cart_service.clear_cart(db=db, current_user=current_user)
