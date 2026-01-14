@@ -16,3 +16,8 @@ from schemas.accounts import (
     UserActivationResendRequestSchema,
     UserRoleUpdateSchema,
 )
+from schemas.orders import (
+    OrderItemSchema,
+    OrderSchema,
+    OrderListResponseSchema,
+)
