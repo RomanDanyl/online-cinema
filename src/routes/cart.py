@@ -13,14 +13,12 @@ from schemas.cart import (
 from security.dependencies import get_current_user, require_roles
 from services import cart as cart_service
 
-# add routes for moderator
 
-public_router = APIRouter()
+router = APIRouter()
 admin_access = Depends(require_roles(allowed_roles=(UserGroupEnum.ADMIN,)))
-admin_router = APIRouter(prefix="/admin/cart", dependencies=[admin_access])
 
 
-@public_router.get("/", summary="View cart", response_model=CartListResponseSchema)
+@router.get("/", summary="View cart", response_model=CartListResponseSchema)
 async def view_cart(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
@@ -28,7 +26,7 @@ async def view_cart(
     return await cart_service.get_cart_items(db=db, current_user=current_user)
 
 
-@public_router.post(
+@router.post(
     "/items/",
     summary="Add to cart",
     response_model=CartItemResponseSchema,
@@ -44,7 +42,7 @@ async def add_to_cart(
     )
 
 
-@public_router.delete(
+@router.delete(
     "/items/{item_id}",
     summary="Remove from cart",
     response_model=CartActionResponseSchema,
@@ -59,7 +57,7 @@ async def remove_from_cart(
     )
 
 
-@public_router.delete(
+@router.delete(
     "/", summary="Clear cart", response_model=CartActionResponseSchema
 )
 async def clear_cart(
@@ -69,8 +67,9 @@ async def clear_cart(
     return await cart_service.clear_cart(db=db, current_user=current_user)
 
 
-@admin_router.get(
-    "/",
+@router.get(
+    "admin/",
+    dependencies=[admin_access],
     summary="List all carts",
     response_model=CartAdminListResponseSchema,
 )
@@ -80,8 +79,9 @@ async def list_all_carts(
     return await cart_service.list_all_carts(db=db)
 
 
-@admin_router.get(
-    "/{user_id}",
+@router.get(
+    "admin/{user_id}",
+    dependencies=[admin_access],
     summary="Get cart by user",
     response_model=CartAdminSchema,
 )

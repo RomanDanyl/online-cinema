@@ -4,8 +4,7 @@ from routes import (
     accounts_router,
     movies_public_router,
     movies_admin_router,
-    cart_public_router,
-    cart_admin_router,
+    cart_router,
     orders_router,
     payments_router,
 )
@@ -27,10 +26,7 @@ app.include_router(
     tags=["admin_movies"],
 )
 app.include_router(
-    cart_public_router, prefix=f"{api_version_prefix}/cart", tags=["public_cart"]
-)
-app.include_router(
-    cart_admin_router, prefix=f"{api_version_prefix}/", tags=["admin_cart"]
+    cart_router, prefix=f"{api_version_prefix}/cart", tags=["public_cart"]
 )
 app.include_router(
     orders_router, prefix=f"{api_version_prefix}/orders", tags=["orders"]
