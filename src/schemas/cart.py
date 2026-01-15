@@ -36,3 +36,12 @@ class CartItemResponseSchema(BaseModel):
 
 class CartActionResponseSchema(BaseModel):
     message: str
+
+
+class CartAdminSchema(BaseModel):
+    user_id: int
+    items: list[CartItemSchema]
+
+
+class CartAdminListResponseSchema(BaseModel):
+    items: list[CartAdminSchema]
