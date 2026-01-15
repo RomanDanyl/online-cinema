@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
-from typing import List, Sequence, Set
+from typing import List, Sequence, Set, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, select
@@ -196,3 +197,25 @@ async def cancel_order(
     await db.commit()
     await db.refresh(order)
     return order
+
+
+async def list_all_orders(
+    *,
+    db: AsyncSession,
+    user_id: Optional[int] = None,
+    status: Optional[OrderStatusEnum] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+) -> List[OrderModel]:
+    stmt = select(OrderModel).options(selectinload(OrderModel.items))
+    if user_id is not None:
+        stmt = stmt.where(OrderModel.user_id == user_id)
+    if status is not None:
+        stmt = stmt.where(OrderModel.status == status)
+    if date_from is not None:
+        stmt = stmt.where(OrderModel.created_at >= date_from)
+    if date_to is not None:
+        stmt = stmt.where(OrderModel.created_at <= date_to)
+
+    stmt = stmt.order_by(OrderModel.created_at.desc())
+    return (await db.execute(stmt)).scalars().all()

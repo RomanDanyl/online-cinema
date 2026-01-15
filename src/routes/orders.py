@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import UserModel, get_db
-from schemas.orders import OrderListResponseSchema, OrderSchema
-from security.dependencies import get_current_user
+from database import UserModel, get_db, UserGroupEnum
+from schemas.orders import (
+    OrderListResponseSchema,
+    OrderSchema,
+    OrderAdminQueryParamsSchema,
+)
+from security.dependencies import get_current_user, require_roles
 from services import orders as orders_service
 
 router = APIRouter()
@@ -48,3 +52,23 @@ async def cancel_order(
         order_id=order_id,
     )
     return OrderSchema.model_validate(order)
+
+
+@router.get(
+    "/admin",
+    dependencies=[Depends(require_roles(allowed_roles=(UserGroupEnum.ADMIN,)))],
+    summary="List all orders",
+    response_model=OrderListResponseSchema,
+)
+async def list_all_orders(
+    query: OrderAdminQueryParamsSchema = Depends(),
+    db: AsyncSession = Depends(get_db),
+) -> OrderListResponseSchema:
+    orders = await orders_service.list_all_orders(
+        db=db,
+        user_id=query.user_id,
+        status=query.status,
+        date_from=query.date_from,
+        date_to=query.date_to,
+    )
+    return OrderListResponseSchema(items=orders)
