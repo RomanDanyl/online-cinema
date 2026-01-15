@@ -28,3 +28,10 @@ class OrderSchema(BaseModel):
 
 class OrderListResponseSchema(BaseModel):
     items: List[OrderSchema]
+
+
+class OrderAdminQueryParamsSchema(BaseModel):
+    user_id: Optional[int] = None
+    status: Optional[OrderStatusEnum] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
