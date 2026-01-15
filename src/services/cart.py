@@ -21,6 +21,8 @@ from schemas.cart import (
     CartItemSchema,
     CartListResponseSchema,
     CartMovieSchema,
+    CartAdminSchema,
+    CartAdminListResponseSchema,
 )
 
 
@@ -173,3 +175,34 @@ async def clear_cart(
     await db.execute(delete(CartItemModel).where(CartItemModel.cart_id == cart_id))
     await db.commit()
     return CartActionResponseSchema(message="Cart cleared.")
+
+
+def _serialize_cart(cart: CartModel) -> CartAdminSchema:
+    items = [_serialize_cart_item(item) for item in cart.items]
+    return CartAdminSchema(user_id=cart.user_id, items=items)
+
+
+async def get_cart_items_for_user(*, db: AsyncSession, user_id: int) -> CartAdminSchema:
+    stmt = (
+        select(CartModel)
+        .where(CartModel.user_id == user_id)
+        .options(
+            selectinload(CartModel.items)
+            .selectinload(CartItemModel.movie)
+            .selectinload(MovieModel.genres)
+        )
+    )
+    cart = (await db.execute(stmt)).scalar_one_or_none()
+    if not cart:
+        return CartAdminSchema(user_id=user_id, items=[])
+    return _serialize_cart(cart)
+
+
+async def list_all_carts(*, db: AsyncSession) -> CartAdminListResponseSchema:
+    stmt = select(CartModel).options(
+        selectinload(CartModel.items)
+        .selectinload(CartItemModel.movie)
+        .selectinload(MovieModel.genres)
+    )
+    carts = (await db.execute(stmt)).scalars().all()
+    return CartAdminListResponseSchema(items=[_serialize_cart(cart) for cart in carts])
