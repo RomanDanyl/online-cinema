@@ -57,9 +57,7 @@ async def remove_from_cart(
     )
 
 
-@router.delete(
-    "/", summary="Clear cart", response_model=CartActionResponseSchema
-)
+@router.delete("/", summary="Clear cart", response_model=CartActionResponseSchema)
 async def clear_cart(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
