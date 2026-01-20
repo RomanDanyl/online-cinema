@@ -72,10 +72,10 @@ class EmailSenderInterface(ABC):
 
     @abstractmethod
     async def send_payment_confirmation_email(
-            self,
-            email: str,
-            order_id: int,
-            amount: str,
+        self,
+        email: str,
+        order_id: int,
+        amount: str,
     ) -> None:
         """
         Send a confirmation email about a successful payment.
