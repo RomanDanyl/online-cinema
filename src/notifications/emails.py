@@ -24,6 +24,7 @@ class EmailSender(EmailSenderInterface):
         password_email_template_name: str,
         password_complete_email_template_name: str,
         comment_notification_email_template_name: str,
+        payment_confirmation_email_template_name: str,
     ):
         self._hostname = hostname
         self._port = port
@@ -40,6 +41,9 @@ class EmailSender(EmailSenderInterface):
         )
         self._comment_notification_email_template_name = (
             comment_notification_email_template_name
+        )
+        self._payment_confirmation_email_template_name = (
+            payment_confirmation_email_template_name
         )
 
         self._env = Environment(loader=FileSystemLoader(template_dir))
@@ -158,4 +162,25 @@ class EmailSender(EmailSenderInterface):
             movie_name=movie_name,
             comment_text=comment_text,
         )
+        await self._send_email(email, subject, html_content)
+
+    async def send_payment_confirmation_email(
+        self,
+        email: str,
+        order_id: int,
+        amount: str,
+    ) -> None:
+        """
+        Send a payment confirmation email asynchronously.
+
+        Args:
+            email: The recipient's email address.
+            order_id: The paid order identifier.
+            amount: The payment amount formatted as string.
+        """
+        template = self._env.get_template(
+            self._payment_confirmation_email_template_name
+        )
+        html_content = template.render(order_id=order_id, amount=amount)
+        subject = "Payment подтвержден"
         await self._send_email(email, subject, html_content)
