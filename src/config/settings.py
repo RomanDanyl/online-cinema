@@ -18,6 +18,7 @@ class BaseAppSettings(BaseSettings):
     PASSWORD_RESET_TEMPLATE_NAME: str = "password_reset_request.html"
     PASSWORD_RESET_COMPLETE_TEMPLATE_NAME: str = "password_reset_complete.html"
     COMMENT_NOTIFICATION_TEMPLATE_NAME: str = "comment_notification.html"
+    PAYMENT_CONFIRMATION_TEMPLATE_NAME: str = "payment_confirmation.html"
 
     LOGIN_TIME_DAYS: int = 7
 
@@ -27,6 +28,16 @@ class BaseAppSettings(BaseSettings):
     EMAIL_HOST_PASSWORD: str = os.getenv("EMAIL_HOST_PASSWORD", "test_password")
     EMAIL_USE_TLS: bool = os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
     MAILHOG_API_PORT: int = os.getenv("MAILHOG_API_PORT", 8025)
+
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    STRIPE_SUCCESS_URL: str = os.getenv(
+        "STRIPE_SUCCESS_URL", "http://127.0.0.1:8000/payment/success"
+    )
+    STRIPE_CANCEL_URL: str = os.getenv(
+        "STRIPE_CANCEL_URL", "http://127.0.0.1:8000/payment/cancel"
+    )
+    STRIPE_CURRENCY: str = os.getenv("STRIPE_CURRENCY", "usd")
 
     S3_STORAGE_HOST: str = os.getenv("MINIO_HOST", "minio-theater")
     S3_STORAGE_PORT: int = os.getenv("MINIO_PORT", 9000)
