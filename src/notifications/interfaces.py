@@ -69,3 +69,20 @@ class EmailSenderInterface(ABC):
             comment_text: Text of the related comment.
         """
         pass
+
+    @abstractmethod
+    async def send_payment_confirmation_email(
+            self,
+            email: str,
+            order_id: int,
+            amount: str,
+    ) -> None:
+        """
+        Send a confirmation email about a successful payment.
+
+        Args:
+            email: Recipient email address.
+            order_id: Paid order identifier.
+            amount: Paid amount formatted as string.
+        """
+        pass
