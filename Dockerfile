@@ -30,7 +30,6 @@ RUN poetry config virtualenvs.create false
 WORKDIR /usr/src/poetry
 
 # Install dependencies with Poetry
-RUN poetry lock
 RUN poetry install --no-root --only main
 
 # Selecting a working directory
