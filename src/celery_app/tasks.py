@@ -12,6 +12,7 @@ from database import (
     RefreshTokenModel,
     get_db_contextmanager,
 )
+from database.session_postgresql import SyncPostgresqlSessionLocal
 
 
 @shared_task()
@@ -21,31 +22,16 @@ def healthcheck() -> dict[str, str]:
     return {"status": "ok", "timestamp": now}
 
 
-async def _cleanup_expired_tokens() -> None:
-    """Remove expired activation, reset, and refresh tokens from the database."""
-
-    async with get_db_contextmanager() as session:
-        now = datetime.now(timezone.utc)
-        await session.execute(
-            delete(ActivationTokenModel).where(ActivationTokenModel.expires_at < now)
-        )
-        await session.execute(
-            delete(PasswordResetTokenModel).where(
-                PasswordResetTokenModel.expires_at < now
-            )
-        )
-        await session.execute(
-            delete(RefreshTokenModel).where(RefreshTokenModel.expires_at < now)
-        )
-
-        await session.commit()
-
-
 @shared_task()
 def cleanup_expired_tokens() -> str:
-    """Celery wrapper that runs the expired token cleanup asynchronously."""
+    now = datetime.now(timezone.utc)
 
-    asyncio.run(_cleanup_expired_tokens())
+    with SyncPostgresqlSessionLocal() as session:
+        session.execute(delete(ActivationTokenModel).where(ActivationTokenModel.expires_at < now))
+        session.execute(delete(PasswordResetTokenModel).where(PasswordResetTokenModel.expires_at < now))
+        session.execute(delete(RefreshTokenModel).where(RefreshTokenModel.expires_at < now))
+        session.commit()
+
     return "expired tokens cleaned"
 
 
