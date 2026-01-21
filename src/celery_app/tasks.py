@@ -1,5 +1,3 @@
-"""Background tasks handled by Celery workers."""
-
 from datetime import datetime, timezone
 
 from celery import shared_task
