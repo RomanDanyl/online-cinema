@@ -1,6 +1,5 @@
 """Background tasks handled by Celery workers."""
 
-import asyncio
 from datetime import datetime, timezone
 
 from celery import shared_task
@@ -10,7 +9,6 @@ from database import (
     ActivationTokenModel,
     PasswordResetTokenModel,
     RefreshTokenModel,
-    get_db_contextmanager,
 )
 from database.session_postgresql import SyncPostgresqlSessionLocal
 
