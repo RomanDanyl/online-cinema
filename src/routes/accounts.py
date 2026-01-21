@@ -46,7 +46,7 @@ from schemas import (
 from security.interfaces import JWTAuthManagerInterface
 from security.dependencies import get_current_user, require_roles
 
-router = APIRouter(prefix="/accounts", tags=["Accounts"])
+router = APIRouter(prefix="/accounts")
 admin_access = Depends(require_roles(allowed_roles=(UserGroupEnum.ADMIN,)))
 
 

@@ -41,18 +41,16 @@ if TYPE_CHECKING:
     from notifications import EmailSenderInterface
 
 
-public_router = APIRouter(prefix="/movies", tags=["Movies"])
+router = APIRouter(prefix="/movies")
 
 admin_access = Depends(
     require_roles(allowed_roles=(UserGroupEnum.MODERATOR, UserGroupEnum.ADMIN))
 )
-admin_router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[admin_access])
-
 
 # -------- Public: list + favorites list --------
 
 
-@public_router.get("/", summary="List movies", response_model=MovieListResponseSchema)
+@router.get("/", summary="List movies", response_model=MovieListResponseSchema)
 async def list_movies(
     query: MovieListQueryParams = Depends(),
     db: AsyncSession = Depends(get_db),
@@ -74,7 +72,7 @@ async def list_movies(
     )
 
 
-@public_router.get(
+@router.get(
     "/{movie_id}",
     summary="Get movie details",
     response_model=MovieDetailSchema,
@@ -89,7 +87,7 @@ async def get_movie_details(
     )
 
 
-@public_router.get(
+@router.get(
     "/genres",
     summary="List genres with movie counts",
     response_model=GenreListResponseSchema,
@@ -100,7 +98,7 @@ async def list_genres_with_counts(
     return await movie_service.list_genres_with_counts(db=db)
 
 
-@public_router.get(
+@router.get(
     "/favorites", summary="List favorite movies", response_model=MovieListResponseSchema
 )
 async def list_favorite_movies(
@@ -131,7 +129,7 @@ async def list_favorite_movies(
 # -------- Public: reactions / favorites / rating --------
 
 
-@public_router.post(
+@router.post(
     "/{movie_id}/like", summary="Like a movie", response_model=MessageResponseSchema
 )
 async def like_movie(
@@ -148,7 +146,7 @@ async def like_movie(
     return MessageResponseSchema(message="Movie liked.")
 
 
-@public_router.post(
+@router.post(
     "/{movie_id}/dislike",
     summary="Dislike a movie",
     response_model=MessageResponseSchema,
@@ -167,7 +165,7 @@ async def dislike_movie(
     return MessageResponseSchema(message="Movie disliked.")
 
 
-@public_router.post(
+@router.post(
     "/{movie_id}/favorites",
     summary="Add movie to favorites",
     response_model=MessageResponseSchema,
@@ -183,7 +181,7 @@ async def add_movie_to_favorites(
     )
 
 
-@public_router.delete(
+@router.delete(
     "/{movie_id}/favorites",
     summary="Remove movie from favorites",
     response_model=MessageResponseSchema,
@@ -198,7 +196,7 @@ async def remove_movie_from_favorites(
     )
 
 
-@public_router.post(
+@router.post(
     "/{movie_id}/rating",
     summary="Rate a movie",
     response_model=MessageResponseSchema,
@@ -218,7 +216,7 @@ async def rate_movie(
 # -------- Public: comments --------
 
 
-@public_router.post(
+@router.post(
     "/{movie_id}/comments",
     summary="Create movie comment",
     response_model=MovieCommentResponseSchema,
@@ -240,7 +238,7 @@ async def create_movie_comment(
     )
 
 
-@public_router.post(
+@router.post(
     "/comments/{comment_id}/like",
     summary="Like a movie comment",
     response_model=MessageResponseSchema,
@@ -263,8 +261,9 @@ async def like_comment(
 # -------- Admin: movies CRUD --------
 
 
-@admin_router.post(
+@router.post(
     "/movies",
+    dependencies=[admin_access],
     summary="Create movie",
     response_model=MovieItemSchema,
     status_code=status.HTTP_201_CREATED,
@@ -276,8 +275,9 @@ async def create_movie_admin(
     return await movie_service.create_movie_admin(db=db, payload=payload)
 
 
-@admin_router.put(
+@router.put(
     "/movies/{movie_id}",
+    dependencies=[admin_access],
     summary="Update movie",
     response_model=MovieItemSchema,
 )
@@ -291,8 +291,9 @@ async def update_movie_admin(
     )
 
 
-@admin_router.delete(
+@router.delete(
     "/movies/{movie_id}",
+    dependencies=[admin_access],
     summary="Delete movie",
     response_model=MessageResponseSchema,
 )
@@ -306,13 +307,14 @@ async def delete_movie_admin(
 # -------- Admin: genres CRUD --------
 
 
-@admin_router.get("/genres", summary="List genres", response_model=list[GenreSchema])
+@router.get("/genres", dependencies=[admin_access], summary="List genres", response_model=list[GenreSchema])
 async def list_genres_admin(db: AsyncSession = Depends(get_db)) -> list[GenreSchema]:
     return await movie_service.list_genres(db=db)
 
 
-@admin_router.post(
+@router.post(
     "/genres",
+    dependencies=[admin_access],
     summary="Create genre",
     response_model=GenreSchema,
     status_code=status.HTTP_201_CREATED,
@@ -324,8 +326,9 @@ async def create_genre_admin(
     return await movie_service.create_genre(db=db, payload=payload)
 
 
-@admin_router.put(
+@router.put(
     "/genres/{genre_id}",
+    dependencies=[admin_access],
     summary="Update genre",
     response_model=GenreSchema,
 )
@@ -337,8 +340,9 @@ async def update_genre_admin(
     return await movie_service.update_genre(db=db, genre_id=genre_id, payload=payload)
 
 
-@admin_router.delete(
+@router.delete(
     "/genres/{genre_id}",
+    dependencies=[admin_access],
     summary="Delete genre",
     response_model=MessageResponseSchema,
 )
@@ -352,8 +356,8 @@ async def delete_genre_admin(
 # -------- Admin: actors CRUD --------
 
 
-@admin_router.get(
-    "/actors", summary="List actors", response_model=list[MovieStarSchema]
+@router.get(
+    "/actors", dependencies=[admin_access], summary="List actors", response_model=list[MovieStarSchema]
 )
 async def list_actors_admin(
     db: AsyncSession = Depends(get_db),
@@ -361,8 +365,9 @@ async def list_actors_admin(
     return await movie_service.list_actors(db=db)
 
 
-@admin_router.post(
+@router.post(
     "/actors",
+    dependencies=[admin_access],
     summary="Create actor",
     response_model=MovieStarSchema,
     status_code=status.HTTP_201_CREATED,
@@ -374,8 +379,9 @@ async def create_actor_admin(
     return await movie_service.create_actor(db=db, payload=payload)
 
 
-@admin_router.put(
+@router.put(
     "/actors/{actor_id}",
+    dependencies=[admin_access],
     summary="Update actor",
     response_model=MovieStarSchema,
 )
@@ -387,8 +393,9 @@ async def update_actor_admin(
     return await movie_service.update_actor(db=db, actor_id=actor_id, payload=payload)
 
 
-@admin_router.delete(
+@router.delete(
     "/actors/{actor_id}",
+    dependencies=[admin_access],
     summary="Delete actor",
     response_model=MessageResponseSchema,
 )
