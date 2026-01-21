@@ -1,7 +1,7 @@
 from typing import Sequence, Callable, Optional
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,15 +10,12 @@ from database import UserModel, get_db, UserGroupEnum
 from exceptions import BaseSecurityError
 from security.interfaces import JWTAuthManagerInterface
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/accounts/login/")
-oauth2_scheme_optional = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/accounts/login/",
-    auto_error=False,
-)
+
+bearer = HTTPBearer(auto_error=True)
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    creds: HTTPAuthorizationCredentials = Depends(bearer),
     db: AsyncSession = Depends(get_db),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ) -> UserModel:
@@ -28,6 +25,7 @@ async def get_current_user(
     and validates that the account exists and is active. It raises appropriate
     HTTP errors when the token is invalid or the user cannot be used.
     """
+    token = creds.credentials
     try:
         payload = jwt_manager.decode_access_token(token)
     except BaseSecurityError as error:
@@ -62,13 +60,13 @@ async def get_current_user(
 
 
 async def get_optional_user(
-    token: Optional[str] = Depends(oauth2_scheme_optional),
+    creds: HTTPAuthorizationCredentials = Depends(bearer),
     db: AsyncSession = Depends(get_db),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ) -> Optional[UserModel]:
+    token = creds.credentials
     if not token:
         return None
-
     try:
         payload = jwt_manager.decode_access_token(token)
     except BaseSecurityError as error:
