@@ -300,8 +300,15 @@ async def update_movie_admin(
 async def delete_movie_admin(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+    email_sender: "EmailSenderInterface" = Depends(get_accounts_email_notificator),
 ) -> MessageResponseSchema:
-    return await movie_service.delete_movie_admin(db=db, movie_id=movie_id)
+    return await movie_service.delete_movie_admin(
+        db=db,
+        movie_id=movie_id,
+        email_sender=email_sender,
+        requested_by=current_user,
+    )
 
 
 # -------- Admin: genres CRUD --------

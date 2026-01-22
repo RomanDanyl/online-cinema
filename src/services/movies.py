@@ -22,7 +22,7 @@ from database import (
     OrderItemModel,
     StarModel,
     UserModel,
-    UserReactionsEnum,
+    UserReactionsEnum, CartItemModel, UserGroupEnum,
 )
 from database.models.movies import movie_genres
 
@@ -778,7 +778,11 @@ async def update_movie_admin(
 
 
 async def delete_movie_admin(
-    *, db: AsyncSession, movie_id: int
+    *,
+    db: AsyncSession,
+    movie_id: int,
+    email_sender: "EmailSenderInterface",
+    requested_by: UserModel,
 ) -> MessageResponseSchema:
     movie = await get_movie_with_relations_or_404(db=db, movie_id=movie_id)
 
@@ -796,9 +800,49 @@ async def delete_movie_admin(
             detail="Movie cannot be deleted because it has been purchased by users.",
         )
 
+    cart_count = (
+        await db.execute(
+            select(func.count(CartItemModel.id)).where(
+                CartItemModel.movie_id == movie_id
+            )
+        )
+    ).scalar_one_or_none()
+
+    if cart_count:
+        await _notify_moderator_about_cart_movie(
+            email_sender=email_sender,
+            movie_name=movie.name,
+            cart_count=cart_count,
+            requested_by=requested_by,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Movie cannot be deleted because it is in user carts.",
+        )
+
     await db.delete(movie)
     await db.commit()
     return MessageResponseSchema(message="Movie deleted successfully.")
+
+
+async def _notify_moderator_about_cart_movie(
+    *,
+    email_sender: "EmailSenderInterface",
+    movie_name: str,
+    cart_count: int,
+    requested_by: UserModel,
+) -> None:
+    if requested_by.group.name not in (UserGroupEnum.MODERATOR, UserGroupEnum.ADMIN):
+        return
+    if not requested_by.email:
+        return
+
+    await email_sender.send_movie_deletion_blocked_notification(
+        email=requested_by.email,
+        movie_name=movie_name,
+        cart_count=cart_count,
+        requested_by=requested_by.email,
+    )
 
 
 # -------- Catalog CRUD (Genres / Actors) --------

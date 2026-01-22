@@ -81,6 +81,7 @@ def get_accounts_email_notificator(
         password_complete_email_template_name=settings.PASSWORD_RESET_COMPLETE_TEMPLATE_NAME,
         comment_notification_email_template_name=settings.COMMENT_NOTIFICATION_TEMPLATE_NAME,
         payment_confirmation_email_template_name=settings.PAYMENT_CONFIRMATION_TEMPLATE_NAME,
+        movie_deletion_blocked_email_template_name=settings.MOVIE_DELETION_BLOCKED_TEMPLATE_NAME,
     )
 
 
