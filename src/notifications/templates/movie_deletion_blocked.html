@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Movie deletion blocked</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; color: #333333;">
+    <h2 style="color: #B71C1C;">Movie deletion blocked</h2>
+    <p>
+      An admin attempted to delete a movie that is still present in user carts.
+    </p>
+    <p>
+      <strong>Movie:</strong> {{ movie_name }}<br />
+      <strong>Cart items:</strong> {{ cart_count }}<br />
+      <strong>Requested by:</strong> {{ requested_by }}
+    </p>
+    <p style="margin-top: 16px;">
+      Please review the carts and take any required action before retrying the deletion.
+    </p>
+  </body>
+</html>

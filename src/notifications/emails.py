@@ -25,6 +25,7 @@ class EmailSender(EmailSenderInterface):
         password_complete_email_template_name: str,
         comment_notification_email_template_name: str,
         payment_confirmation_email_template_name: str,
+        movie_deletion_blocked_email_template_name: str,
     ):
         self._hostname = hostname
         self._port = port
@@ -44,6 +45,9 @@ class EmailSender(EmailSenderInterface):
         )
         self._payment_confirmation_email_template_name = (
             payment_confirmation_email_template_name
+        )
+        self._movie_deletion_blocked_email_template_name = (
+            movie_deletion_blocked_email_template_name
         )
 
         self._env = Environment(loader=FileSystemLoader(template_dir))
@@ -183,4 +187,31 @@ class EmailSender(EmailSenderInterface):
         )
         html_content = template.render(order_id=order_id, amount=amount)
         subject = "Payment подтвержден"
+        await self._send_email(email, subject, html_content)
+
+    async def send_movie_deletion_blocked_notification(
+            self,
+            email: str,
+            movie_name: str,
+            cart_count: int,
+            requested_by: str,
+    ) -> None:
+        """
+        Send a notification to moderators when movie deletion is blocked.
+
+        Args:
+            email: The recipient's email address.
+            movie_name: Name of the movie that could not be deleted.
+            cart_count: Number of cart items that contain the movie.
+            requested_by: Email of the admin who attempted the deletion.
+        """
+        template = self._env.get_template(
+            self._movie_deletion_blocked_email_template_name
+        )
+        html_content = template.render(
+            movie_name=movie_name,
+            cart_count=cart_count,
+            requested_by=requested_by,
+        )
+        subject = "Movie deletion blocked"
         await self._send_email(email, subject, html_content)

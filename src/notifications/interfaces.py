@@ -86,3 +86,22 @@ class EmailSenderInterface(ABC):
             amount: Paid amount formatted as string.
         """
         pass
+
+    @abstractmethod
+    async def send_movie_deletion_blocked_notification(
+            self,
+            email: str,
+            movie_name: str,
+            cart_count: int,
+            requested_by: str,
+    ) -> None:
+        """
+        Send a notification to moderators when movie deletion is blocked.
+
+        Args:
+            email: Recipient email address.
+            movie_name: Name of the movie that could not be deleted.
+            cart_count: Number of cart items that contain the movie.
+            requested_by: Email of the admin who attempted the deletion.
+        """
+        pass

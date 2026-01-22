@@ -19,6 +19,7 @@ class BaseAppSettings(BaseSettings):
     PASSWORD_RESET_COMPLETE_TEMPLATE_NAME: str = "password_reset_complete.html"
     COMMENT_NOTIFICATION_TEMPLATE_NAME: str = "comment_notification.html"
     PAYMENT_CONFIRMATION_TEMPLATE_NAME: str = "payment_confirmation.html"
+    MOVIE_DELETION_BLOCKED_TEMPLATE_NAME: str = "movie_deletion_blocked.html"
 
     LOGIN_TIME_DAYS: int = 7
 
