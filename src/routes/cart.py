@@ -66,7 +66,7 @@ async def clear_cart(
 
 
 @router.get(
-    "admin/",
+    "/admin",
     dependencies=[admin_access],
     summary="List all carts",
     response_model=CartAdminListResponseSchema,
@@ -78,7 +78,7 @@ async def list_all_carts(
 
 
 @router.get(
-    "admin/{user_id}",
+    "/admin/{user_id}",
     dependencies=[admin_access],
     summary="Get cart by user",
     response_model=CartAdminSchema,
