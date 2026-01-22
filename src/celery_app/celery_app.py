@@ -1,5 +1,3 @@
-"""Celery application configuration and beat schedule."""
-
 from celery import Celery
 from celery.schedules import crontab
 
